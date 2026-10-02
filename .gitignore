@@ -1,0 +1,20 @@
+# Build and output artifacts
+/bin/
+/dist/
+/backups/
+/staging/
+/tests/work/
+/tests/fixtures/private/
+
+# Runtime and local configuration
+config.json
+*.zip
+*.tmp
+*.log
+
+# IDE & Editor user settings
+*.user
+*.suo
+.vs/
+.idea/
+.vscode/

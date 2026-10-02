@@ -1,0 +1,1023 @@
+Dented Sword
+Shortsword
+Broadsword
+Gladius
+Longsword
+Scimitar
+Hunting Sword
+Falchion
+Rapier
+Silver Sword
+Ceramic Sword
+Prismatite Sword
+Aqua Blade
+Crescent Sword
+Holy Sword
+Instrumental Sword
+Crystallite Blade
+Eclipse Sword
+Emblazoned Sword
+Seven-Star Sword
+Ancient Sword
+Gram
+Celestial Sword
+Balmung
+Azureal Blade
+Worn Bow
+Cork Bow
+Tracker's Bow
+Laminated Bow
+Iron Bow
+Backed Bow
+Hunting Bow
+Longbow
+Great Bow
+Pointer
+Composite Bow
+Broken Heart
+Moon Bow
+Blazed Bow
+Commander Bow
+Sagittarian Bow
+Royal Bow
+Kolt Bow
+Sarnga
+Avifir Bow
+Bent Staff
+Beginner Staff
+Acolyte Bow
+Iron Staff
+Preaching Staff
+Ebony Staff
+Cerebral Staff
+Bishop Staff
+Light Staff
+Pilgrim Staff
+Might Staff
+Glory Staff
+Holy Staff
+Dominance Staff
+Sage Staff
+Seeker Staff
+Ancient Staff
+Moon Staff
+Discipline Staff
+Caduceus
+Moth-Eaten Grimoire
+"The World of Magic"
+"The Art of Tea"
+"Dimensional Journey"
+"Romancing for Women"
+"The Shadow Codex"
+Michelle's Diary
+"Fear of the Unseen"
+"The Forbidden Grimoire"
+"Endless Tale"
+"Seven Secrets"
+"Science of Magic"
+"End of Ages"
+"Apocalypse of Darkness"
+"Apocalypse of Light"
+"The Book of Judgement"
+"Papyrus Magicus"
+"The Tale of Volsung"
+"The Tale of Two Moons"
+"Genesis
+Rusted Greatsword
+Hand-and-a-Half Sword
+Bastard Wrod
+Two-Handed Sword
+Greatsword
+Claymore
+Shamshir
+Estoc
+Katzbalger
+Flamberge
+Defender
+Prismatite Blade
+Crescent Blade
+Atlantis Blade
+Dullahn
+Braveheart
+Ascalon
+Caladbolg
+Hrotti
+Karathos Blade
+Nicked Dagger
+Sparrow
+Lark
+Nightingale
+Seagull
+Peacock
+Swallow
+Kingfisher
+Owl
+Falcon
+Flying Swallow
+Cuckoo
+Lovebird
+Raven
+Shrike
+Jacana
+Vulture
+Eagle
+Plovers
+Nighthawk
+Cracked Baton
+Toy Baton
+Training Baton
+Novice Baton
+Ebony Baton
+Battle Baton
+Marching Baton
+Lux Baton
+Marble Baton
+Silver Baton
+Symphonic Baton
+Healing Baton
+Prismatite Baton
+Metronome Baton
+Energico Baton
+Scemando Baton
+Spiritoso Baton
+Animato Baton
+Grandioso Baton
+Maestro's Baton
+Ripped Drum
+Toy Drum
+Clay Drum
+Badhran
+Tarabuka
+Bayan
+Conical Drum
+Banana Drum
+Ceramic Drum
+Silver Drum
+Dholak
+Taiko Drum
+Timpani
+Fire Beat
+Taiko War Drum
+Dance Tambourine
+Talking Drum
+Beatdown
+Okedo Taiko Drum
+Mystic Drum
+Worn Axe
+Bronze Axe
+Woodcutter Axe
+Sea Axe
+Ogre's Hammer
+Broad Axe
+Battleaxe
+Poleaxe
+Mithril Axe
+Halbert
+Metetite Axe
+Blaze Axe
+Crescent Axe
+Crystallite Axe
+Bardiche
+Bloody Bat
+Berserker
+Groundbreaker
+Executionaer
+Mjolnir
+Weather Fox
+Blunt Katana
+Wind
+Blindeye
+Ogre
+Herosong
+Foresight
+Resentment
+Seagaze
+Honor
+Thunder
+Laughter
+Ease
+Pity
+Scorn
+Affection
+Dragonedge
+Rage
+Holy King
+Divinity
+Old Dagger
+Flint Dagger
+Kris
+Pugio
+Chilanum Dagger
+Scramasax
+Main Gouche
+Kukri
+Baselard
+Stiletto
+Ceramic Dagger
+Deadly Needle
+Blaze Dagger
+Quartz Dagger
+Katar
+Cinquedea
+Viper Fang
+Carnwennan
+Jambiya
+Moon Blade
+Broken Claws
+Bonze Claws
+Honey Hunters
+Iron Claw
+Wolf Claws
+Panther Claws
+Eagle Claws
+Metetite Claws
+Bear Claws
+Tiger Claws
+Lion Claws
+Blaze Claws
+Wild Claws
+Dragon Claws
+Salmon Killers
+Crecent Claws
+Prismatite Claws
+Claws of Glory
+Eclipse Claws
+Sabris Claws
+Torn Clothes
+Patched Leather Jacket
+Soft Leather Jacket
+Hard Leather Jacket
+Crested Vest
+Silver Fur Jacket
+Lizard Skin Vest
+Nightwhisper Garb
+Woodchip Vest
+Patchwork Vest
+Garuda Jacket
+Salamnder Jacket
+Nightwhisper Uniform
+Golden Fur Jacket
+Mirage Vest
+Solid Leather Jacket
+Fierce Leopard Garb
+Dragon Hide Vest
+Phoenix Feather Jacket
+Sabris Garb
+Dented Armor
+Bronze Scale Armor
+Iron Scale Armor
+Steel Scale Armor
+Copper Chainmail
+Silver Chainmail
+Gold Chainmail
+Banded Armor
+Bronze Plate Armor
+Iron Plate Armor
+Steel Plate Armor
+Assault Suit
+Prominence Armor
+Prismatite Suit
+Crescent Armor
+Crystallite Suit
+Mercurius Suit
+Eclipse Armor
+Hydra Armor
+Karathos Suit
+Moth-Eaten Robe
+Kenaf Tunic
+Bark Robe
+Ramie Chiton
+Linen Toga
+Cotton Cloak
+Linen Cape
+Silk Cloak
+Damask Coat
+Rachnuvus Sari
+Beast Fur Garb
+Down Feather Cloak
+Silk Shawl
+Silk Robe
+Damask Gown
+Shadow Cloak
+Mage Robe
+Blessed Garb
+Feeble Cape
+Avifir Garb
+Shabby Hat
+Pathed Leather Cap
+Soft Leather Cap
+hard Leather Cap
+Crested Mask
+Silver Fur Hood
+Lizard Skin Cap
+Nightwhisper Hood
+Woodchip Mask
+Patchwork Cap
+Garuda Hood
+Salamnder Cap
+Nightwhisper Mask
+Golde Fur Hood
+Mirage Cap
+Solid Leather Cap
+Dragon Hide Cap
+Phoenix Feather Hood
+Avifir Headdress
+Eye of Avifir
+Dented Helmet
+Bronze Scale Helmet
+Iron Scale Helmet
+Steel Scale Helmet
+Copper Chain Helmet
+Silver Chain Helmet
+Golden Chain Helmet
+Banded Headgear
+Bronze Plate Helmet
+Iron Plate Helmet
+Steel Plate Helmet
+Mercenary Helmet
+Prominence Helmet
+Prismatite Headgear
+Crescent Helmet
+Crystallite Headgear
+Mercurius Headger
+Eclipse Helmet
+Saruleus Helmet
+Karathos Helmet
+Tarnished Circlet
+Sandstone Circlet
+Granite Circlet
+Marble Circlet
+Cotton Hat
+Linen hat
+Metetite Circlet
+Rachnuvus Turban
+Mage Hat
+Beast Fur Bandana
+Blaze Tiara
+Quartz Tiara
+Primatite tiara
+Down Feather Hat
+Silk Hat
+Marcurius Crown
+Pius Tiara
+Blessed Hat
+Bloody Hat
+Vermillion Wind Piece
+Soleless Shoes
+Patched Leather Boots
+Soft Leather Boots
+Hard Leather Boots
+Balsa Clogs
+Solid Leather Boots
+Lux Clogs
+Hearthstone Boots
+Nightwhisper Shoes
+Lentesco Clogs
+Pathwork Boots
+Garuda Shoes
+Salamnder Boots
+Mirage Boots
+Lizard Skin Boots
+Dragon Hide Boots
+Phoenix Feather Boots
+Sabris Boots
+Kylin Boots
+Kylin Sandals
+Rusted Greaves
+Bronze Scale Greaves
+Iron Scale Greaves
+Steel Scale Greaves
+Copper Chain Greaves
+Silver Chain Greaves
+Gold Chain Greaves
+Banded Greaves
+Bronze Plate Greaves
+Iron Greaves
+Steel Greaves
+Heavy Greaves
+Prominence Leggings
+Prismatite Greaves
+Crescent Leggings
+Crystallite Greaves
+Mercurius greaves
+Eclipse Leggings
+Kylin Greaves
+Feet of Saruleus
+Broken-Heeled Sandals
+Cork Sandals
+Lauan Sandals
+Balsa Sandals
+Lux Sandals
+Silver Fur Pumps
+Rachnuvus Pumps
+Mage Sandals
+Golden Fur Pumps
+Lentesco Sandals
+Placidus Sandals
+Silk Pumps
+Malus Sandals
+Damask Mules
+beast Fur Greaves
+Pius Sandals
+Blessed Mules
+Black Pumps
+Scarlet Pumps
+Karathos Sandals
+Sandstone Ring
+Blossom Ring
+Bronze Ring
+Iron Ring
+Copper Ring
+Silver Ring
+Gold Ring
+Mercurius Ring
+Lentesco Ring
+Salamander Ring
+Ceramic Ring
+Prismatite Ring
+Rachnuvus Ring
+Ring of Heart
+Ring of Life
+Lunatite ring
+Crystallite Ring
+Amarlista Ring
+Sovereignty Ring
+Saruleus Ring
+Casandra Ring
+Cork Pendant
+Lei
+Lauan Pendant
+Granite Necklace
+Balsa Pendant
+Ebony Pendant
+Marble Necklace
+Lux Pendant
+Snake Pendant
+Metetite Necklace
+Placidus Pendant
+Malus Pendant
+Pius Pendant
+Blaze Necklace
+Quartz Necklace
+Hearthstone Necklace
+Solar Necklace
+Lunar Necklace
+Karathos Necklace
+Saruleus Necklus
+Oversized Wristband
+Satin Wrsitband
+Lizard Wristband
+Linen Wristband
+Iron Wristguard
+Copper Wristguard
+Silver Wristguard
+Quartz Wristguard
+Gold Wristguard
+Mercurius Wristguard
+Feather Wristband
+Wolf Wristband
+Sheep Wrsitband
+Buffalo Wristband
+Glutton Wristband
+Feeble Wristband
+Dragon Wristband
+Lame Wristband
+Sabris Wristband
+Karathos Wristband
+Hopeless Charm
+Four-leaf Clover
+Harvest Coin
+Fox Tail
+Wisdom Coin
+Smiley Charm
+Rabbit's Foot
+Eagle Eye
+Horseshoe
+Sacrificial Doll
+Moon Drop
+Crimson Moon
+Magico Amplio
+Magic Aria
+Lunarage
+Eternal Rose
+Monk's Soul
+King of Kings
+Tri-Emblem
+Tri-Emblem
+Capell Doll
+Faina Doll
+Leif Doll
+Red Berry Potion
+Blue Berry Potion
+Yellow Berry Potion
+Green Berry Potion
+Red Berry Powder
+Blue Berry Powder
+Yellow Berry Powder
+Green Berry Powder
+Black Berry Potion
+White Berry Potion
+Silver Berry Potion
+Gold Berry Potion
+Black Berry Powder
+White Berry Powder
+Silver Berry Powder
+Gold Berry Powder
+Liquid Salt
+Coffee
+Antidote
+Holy Water
+Para-Gone
+Cough Drop
+Sedative
+Spring Warmth
+Odious Eye
+Maiden's Scorn
+Eye Drops
+Angle Earpick
+Aroma Oil
+Panacea
+Miraculous Medicine
+Mysterious Medicine
+Claridian Medicine
+Bottomless Pot
+Kismetic Tablet
+Cornucopia
+Holy Grail
+Toothbrush
+Call of War
+Lunar Scale
+Seeing Eye
+Horizon Crystal
+Sunstone
+Lunar Suppressant
+Lunar Suppressant X
+Lunar Suppressant Z
+Lunar Incense
+Lunar Powder
+Lunar Fragment
+Perfume of Suspicion
+Charming Perfume
+Memoirs of a Warrior
+Memoirs of a Knight
+Memoirs of a Hunter
+Memoirs of a Thief
+Memoirs of a Mage
+Memoirs of a Mercenary
+Memoirs of an Alchemist
+"Dance of the Sword"
+"Memos of a Master Marksman"
+"Manuscripts of a Priest" (Dummy Skill Book)
+"Origins of Magic" (Dummy Skill Book)
+"Secrets of Alchemy" (Dummy Skill Book)
+"Path of a Hero"
+"Live by the Sword"
+"Legend of a Shadow"
+"Heart of Beasts" (Dummy Skill Book)
+"Gate to Madness" (Dummy Skill Book)
+"Mechanical Engineer" (Dummy Skill Book)
+"True Warrior" (Dummy Skill Book)
+"Palm of the Hand"
+"Shining Star Saga" (Dummy Skill Book)
+"Secrets of the Blackstreets" (Dummy Skill Book)
+"Hand of the Beast King" (Dummy Skill Book)
+"My Infallible Weapon" (Dummy Skill Book)
+"Light Upon the Path" (Dummy Skill Book)
+"Whispers of a Tree"
+"Rage of Fire"
+"Molding of Earth"
+"Glimmer of Gold" (Dummy Skill Book)
+"Tide of Water"
+""
+"Power of Fog"
+"Master of Time" (Dummy Skill Book)
+"Flow of the Land"
+"Will of the Universe"
+Training Score
+Prelude Score
+Nocturne Score
+Sonata Score
+Fantasia Score
+Symphony Score
+Concerto Score
+Suite Score
+Capriccio Score
+Fugue Score
+"Intro to Astrology"
+Astrology Manual
+"Understanding Astrology"
+"Astrological Mysteries"
+"Secret Arts of Astrology"
+"Talk with Animals"
+"My Animal Friends"
+"Animal Secrets"
+"Heart of Animals"
+"Facts About Animals"
+Fresh Mild
+Fruit Milk
+100% Berry Juice
+Mixed Berry Juice
+Halgitian Berry Wine
+Fresh Herb Tea
+Royal Herb Tea
+Honey Tea
+Burguess Fruit Liquor
+Premium Karathos
+Thousand Year Sigh
+Big Gamble
+Primo Nectar
+Soup Stock
+Bee Larvae Soup
+Nutritious Snake Soup
+Searty Soup
+Stewed Lizard Scales
+Dragon Soup Stock
+Deviant Fish Soup
+Stewed Bear Paw
+Deluxe Crab Soup
+Witch Broth Soup
+Heaven and Earth
+Amateur Hot Pot
+Oradian Chicken Hot Pot
+Desert Hot Port
+Pandora's Hot Pot
+Imperial Stewed Hot Pot
+Cobasna Mushroom Hot Pot
+Feast of the Immortals
+Heavenly Risotto
+Hero's Crab Gratin
+Devil's Spaghetti
+Dragon Fiesta
+Stewed Whole Bat
+Veggie Salad
+Kolton Omelet
+Fried Greatfowl
+Deviant Fish Platter
+Grilled Rachnuvus
+Fried Lizard with Veggies
+Rare Salmon Hot Plate
+Fried Demon Eye
+Perfected Curry
+Gourmet Barbeque
+Berry Ice Cream
+Berry Tart
+Special Pudding
+Halgitian Jelly
+Lucky Chocolate Coin
+Slime Pudding
+Rare Butter Cake
+Fruit Fiesta
+Emperor's Delight
+Glacial Delight
+Wedding Special
+Berry Bread
+Cobasna Salad Sandwich
+Toast of Dawn
+Ordadian Chicken Sandwich
+Jackpot Burger
+Soul Roll
+Rock Hard Stick of Bread
+Exquisite Bread Crusts
+Hell's Egg Sandwich
+Mysterious Curry Bread
+Heavenly Pancake
+Mystery Meat
+Wild Rabbit Meat
+Wild Fox Meat
+Chicken
+Fayel Checken
+Beef
+Prehistoric Meat
+Dragon Meat
+Fish Fin
+Sliced Fish
+Sliced Deviant Fish
+Sliced Salmon
+Sliced Rare Salmon
+Crab Claw
+Crab Meat
+Cobasna Lettuce
+Oradian Carrot
+Nolaan Potato
+Graad Onion
+Lintz Tomato
+Pieria Mushroom
+Reiner Garlic
+Sapran Green Pepper
+Red Berry
+Blue Berry
+Yellow berry
+Green Berry
+Black Berry
+White Berry
+Silver Berry
+Gold Berry
+Burguess Apple
+Fayel Lemon
+Halgitian Strawberry
+Kolton Melon
+Casandra Banapple
+Honey
+Wiid Syrup
+Zala Rock Salt
+Halgitian Paste
+White Pepper
+Oradian Butter
+Berry Oil
+Royal Jelly
+Curry Powder
+Junk
+Metal Fragment
+Stone Statue Fragment
+Sandstone
+Granite
+Marble
+Ceramic
+Metetite
+Hearthstone
+Lunatite
+Quartz
+Amarlista
+Bronze Metal
+Iron Metal
+Copper Metal
+Steel Metal
+Silver Metal
+Titanium Metal
+Gold Metal
+Blaze Metal
+Prismatite Metal
+Mercurious Metal
+Crystallite Metal
+Atlantis Metal
+Cork Wook
+Lauan Wood
+Balsa Wood
+Ebony Wood
+Lux Wood
+Lentesco Wood
+Placidus Wood
+Malus Wood
+Pius Wood
+Rabbit Hide
+Sheep Hide
+Lizard Skin
+Buffalo Hide
+Silver Fox Fur
+Golden Wilf Fur
+Chameleon Skin
+Salamander Skin
+Glutton Hide
+Garuda Skin
+Dragon Hide
+Kenaf Cloth
+Ramie Cloth
+Barkcloth
+Cotton Cloth
+Linen Cloth
+Silk Cloth
+Down Feather Cloth
+Damask Cloth
+Feeble Cloth
+Rachnuvus Cloth
+Lubricus Cloth
+Empyrean Cloth
+Medical Herb
+Fresh herb
+Antidote Herb
+Novo Herb
+Fructus Herb
+Halgitian Rice
+Fayel Wheat
+Laurel
+Toadstool
+Insect Antenna
+Insect Shell
+Thin Wing
+Monster Claw
+Insect Fang
+Poison Stinger
+Bat Wing
+Beehive
+Snakeskin
+Cactus Needle
+Vine
+Random Beast Bone
+Bone fragment
+Animal Fang
+Bird Eye
+Lizard Scale
+Bird Egg
+Lizard Fang
+Lizard Eye
+Rachnuvus Shell
+King Egg
+Crab Shell
+Dragon Scale
+Dragon Fang
+Giant Eye
+Bear Paw
+Dragon Eye
+Quill
+Writer's Quill
+Clerk's Quill
+Musician's Quill
+Genius's Quill
+Papyris Paper
+Pulp Paper
+Staff Paper
+Parchment
+Halgitian Paper
+Sword of Spades
+Chalice of Hearts
+Club of Clubs
+Coin of Diamonds
+Servant of Jacks
+Queen of Queens
+Item 0837
+Item 0838
+Item 0839
+Item 0840
+Item 0841
+Item 0842
+Item 0843
+Item 0844
+Item 0845
+Item 0846
+Item 0847
+Item 0848
+Item 0849
+Item 0850
+Item 0851
+Item 0852
+Item 0853
+Item 0854
+Item 0855
+Item 0856
+Item 0857
+Item 0858
+Item 0859
+Item 0860
+Item 0861
+Item 0862
+Item 0863
+Item 0864
+Item 0865
+Item 0866
+Item 0867
+Item 0868
+Item 0869
+Item 0870
+Item 0871
+Item 0872
+Item 0873
+Item 0874
+Item 0875
+Item 0876
+Item 0877
+Item 0878
+Item 0879
+Item 0880
+Item 0881
+Item 0882
+Item 0883
+Item 0884
+Item 0885
+Item 0886
+Item 0887
+Item 0888
+Item 0889
+Item 0890
+Item 0891
+Item 0892
+Item 0893
+Item 0894
+Item 0895
+Item 0896
+Item 0897
+Item 0898
+Item 0899
+Item 0900
+Item 0901
+Item 0902
+Item 0903
+Item 0904
+Item 0905
+Item 0906
+Item 0907
+Item 0908
+Item 0909
+Item 0910
+Item 0911
+Item 0912
+Item 0913
+Item 0914
+Item 0915
+Item 0916
+Item 0917
+Item 0918
+Item 0919
+Item 0920
+Item 0921
+Item 0922
+Item 0923
+Item 0924
+Item 0925
+Item 0926
+Item 0927
+Item 0928
+Item 0929
+Item 0930
+Item 0931
+Item 0932
+Item 0933
+Item 0934
+Item 0935
+Item 0936
+Item 0937
+Item 0938
+Item 0939
+Item 0940
+Item 0941
+Item 0942
+Item 0943
+Item 0944
+Item 0945
+Item 0946
+Item 0947
+Item 0948
+Item 0949
+Item 0950
+Item 0951
+Item 0952
+Item 0953
+Item 0954
+Item 0955
+Item 0956
+Item 0957
+Item 0958
+Item 0959
+Item 0960
+Item 0961
+Item 0962
+Item 0963
+Item 0964
+Item 0965
+Item 0966
+Item 0967
+Item 0968
+Item 0969
+Item 0970
+Item 0971
+Item 0972
+Item 0973
+Item 0974
+Item 0975
+Item 0976
+Item 0977
+Item 0978
+Item 0979
+Item 0980
+Item 0981
+Item 0982
+Item 0983
+Item 0984
+Item 0985
+Item 0986
+Item 0987
+Item 0988
+Item 0989
+Item 0990
+Item 0991
+Item 0992
+Item 0993
+Item 0994
+Item 0995
+Item 0996
+Item 0997
+Item 0998
+Item 0999
+Item 1000
+Item 1001
+Item 1002
+Item 1003
+Item 1004
+Item 1005
+Item 1006
+Item 1007
+Item 1008
+Item 1009
+Item 1010
+Item 1011
+Item 1012
+Item 1013
+Item 1014
+Item 1015
+Item 1016
+Item 1017
+Item 1018
+Item 1019
+Item 1020
+Item 1021
+Item 1022
+Item 1023
