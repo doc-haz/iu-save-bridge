@@ -10,6 +10,22 @@ It provides a modern, high-contrast, crystal fantasy user interface and direct s
 
 ---
 
+## Download
+
+Latest portable Windows x64 release:
+
+https://github.com/doc-haz/iu-save-bridge/releases/latest
+
+Download:
+
+`IU-Save-Bridge-v2.2.0-win-x64.zip`
+
+No installer is required. Extract the ZIP to a writable folder and run:
+
+`IU_Save_Bridge.exe`
+
+---
+
 ## Key Highlights
 
 - **Direct & Transparent Workflow:** `Open Save -> Edit -> Save Changes`. The editor eliminates legacy staging folders and CON/STFS wrapping from the user experience while maintaining atomic file replacement.
