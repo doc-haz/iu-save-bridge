@@ -82,14 +82,14 @@ namespace IUSaveBridge
             return s_itemNames;
         }
 
-        public static List<ItemData> ReadAllFrom(byte[] data)
+        public static List<ItemData> ReadAllFrom(byte[] data, int baseOffset = BaseOffset)
         {
             string[] names = LoadCatalog();
             List<ItemData> list = new List<ItemData>(ItemCount);
 
             for (int i = 0; i < ItemCount; i++)
             {
-                int off = BaseOffset + (i * ItemStride);
+                int off = baseOffset + (i * ItemStride);
                 ushort id = ReadU16(data, off + 0x00);
                 ushort amount = ReadU16(data, off + 0x02);
                 uint flags = ReadU32(data, off + 0x04);
@@ -110,9 +110,9 @@ namespace IUSaveBridge
             return list;
         }
 
-        public static void WriteItem(byte[] data, ItemData item)
+        public static void WriteItem(byte[] data, ItemData item, int baseOffset = BaseOffset)
         {
-            int off = BaseOffset + ((item.Id - 1) * ItemStride);
+            int off = baseOffset + ((item.Id - 1) * ItemStride);
             if (item.Amount > 0)
             {
                 WriteU16(data, off + 0x00, item.Id);

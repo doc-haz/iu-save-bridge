@@ -10,12 +10,21 @@ namespace IUSaveBridge
         public const uint ExpectedMagic = 0x55445356; // "UDSV"
         public const uint ExpectedVersion = 0x00000033;
         public const uint ExpectedTitleId = 0x535107DB;
-        public const int FolOffset = 0x2898;
+        public const int DefaultBaseOffset = 0x2800;
+        public const int DefaultFolOffset = 0x2898;
+        public const int FolOffset = DefaultFolOffset; // Kept for backwards compatibility
+        public const int SlotNumberOffset = 0x10;
 
         public byte[] Data { get; private set; }
+        public int BaseOffset { get; private set; }
+        public int CurrentFolOffset { get { return BaseOffset + 0x98; } }
+        public int InventoryOffset { get { return BaseOffset + 0x3A48; } }
+        public int CharacterBaseOffset { get { return BaseOffset + 0x1F0F8; } }
+
         public uint Magic { get; private set; }
         public uint Version { get; private set; }
         public uint TitleId { get; private set; }
+        public uint SlotNumber { get; private set; }
         public uint Fol { get; private set; }
         public uint StoredCrc1 { get; private set; }
         public uint StoredCrc2 { get; private set; }
@@ -65,10 +74,21 @@ namespace IUSaveBridge
                     Version, ExpectedVersion));
             }
 
+            uint baseOff = ReadUInt32BE(Data, 0x08);
+            if (baseOff >= 0x0100 && baseOff <= 0x20000 && (baseOff % 0x100 == 0))
+            {
+                BaseOffset = (int)baseOff;
+            }
+            else
+            {
+                BaseOffset = DefaultBaseOffset;
+            }
+
             TitleId = ReadUInt32BE(Data, 0x0C);
+            SlotNumber = ReadUInt32BE(Data, SlotNumberOffset);
             StoredCrc1 = ReadUInt32BE(Data, 0x14);
             StoredCrc2 = ReadUInt32BE(Data, 0x18);
-            Fol = ReadUInt32BE(Data, FolOffset);
+            Fol = ReadUInt32BE(Data, CurrentFolOffset);
 
             // Compute CRC32s
             byte[] tempHeader = new byte[232];
@@ -87,8 +107,16 @@ namespace IUSaveBridge
 
         public void SetFol(uint newFol)
         {
-            WriteUInt32BE(Data, FolOffset, newFol);
+            WriteUInt32BE(Data, CurrentFolOffset, newFol);
+            WriteUInt32BE(Data, 0x24, newFol);
             Fol = newFol;
+            RecalculateChecksums();
+        }
+
+        public void SetSlotNumber(uint newSlot)
+        {
+            WriteUInt32BE(Data, SlotNumberOffset, newSlot);
+            SlotNumber = newSlot;
             RecalculateChecksums();
         }
 
@@ -124,35 +152,30 @@ namespace IUSaveBridge
 
         public CharacterData GetCharacter(int index)
         {
-            return CharacterData.ReadFrom(Data, index);
+            return CharacterData.ReadFrom(Data, index, CharacterBaseOffset);
         }
 
         public CharacterData[] GetAllCharacters()
         {
-            CharacterData[] chars = new CharacterData[CharacterData.Names.Length];
-            for (int i = 0; i < chars.Length; i++)
-            {
-                chars[i] = CharacterData.ReadFrom(Data, i);
-            }
-            return chars;
+            return CharacterData.ReadAllFrom(Data, CharacterBaseOffset);
         }
 
         public void SaveCharacter(CharacterData character)
         {
             if (character == null) throw new ArgumentNullException("character");
-            character.WriteTo(Data);
+            character.WriteTo(Data, CharacterBaseOffset);
             RecalculateChecksums();
         }
 
         public System.Collections.Generic.List<ItemData> GetAllItems()
         {
-            return ItemData.ReadAllFrom(Data);
+            return ItemData.ReadAllFrom(Data, InventoryOffset);
         }
 
         public void SaveItem(ItemData item)
         {
             if (item == null) throw new ArgumentNullException("item");
-            ItemData.WriteItem(Data, item);
+            ItemData.WriteItem(Data, item, InventoryOffset);
             RecalculateChecksums();
         }
 
@@ -161,7 +184,7 @@ namespace IUSaveBridge
             if (items == null) throw new ArgumentNullException("items");
             foreach (var item in items)
             {
-                ItemData.WriteItem(Data, item);
+                ItemData.WriteItem(Data, item, InventoryOffset);
             }
             RecalculateChecksums();
         }

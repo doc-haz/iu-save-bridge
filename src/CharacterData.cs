@@ -40,12 +40,12 @@ namespace IUSaveBridge
             get { return BaseOffset + (Index * CharacterStride); }
         }
 
-        public static CharacterData ReadFrom(byte[] data, int index)
+        public static CharacterData ReadFrom(byte[] data, int index, int baseOffset = BaseOffset)
         {
             if (index < 0 || index >= Names.Length)
                 throw new ArgumentOutOfRangeException("index");
 
-            int off = BaseOffset + (index * CharacterStride);
+            int off = baseOffset + (index * CharacterStride);
             CharacterData c = new CharacterData();
             c.Index = index;
             c.Name = Names[index];
@@ -56,7 +56,7 @@ namespace IUSaveBridge
             c.InParty = (partyFlags & 0x0800) != 0;
             c.InActiveParty = (activeFlags & 0x0001) != 0;
 
-            c.Level = ReadU32(data, off + 0x18);
+            c.Level = ReadU16(data, off + 0x1A);
             c.Exp = ReadU32(data, off + 0x24);
             c.MaxHp = ReadU32(data, off + 0x28);
             c.CurrentHp = ReadU32(data, off + 0x30);
@@ -73,9 +73,19 @@ namespace IUSaveBridge
             return c;
         }
 
-        public void WriteTo(byte[] data)
+        public static CharacterData[] ReadAllFrom(byte[] data, int baseOffset = BaseOffset)
         {
-            int off = Offset;
+            CharacterData[] chars = new CharacterData[Names.Length];
+            for (int i = 0; i < chars.Length; i++)
+            {
+                chars[i] = ReadFrom(data, i, baseOffset);
+            }
+            return chars;
+        }
+
+        public void WriteTo(byte[] data, int baseOffset = BaseOffset)
+        {
+            int off = baseOffset + (Index * CharacterStride);
 
             // In Party flag (0x0800)
             ushort curParty = ReadU16(data, off + 0x08);
@@ -89,7 +99,7 @@ namespace IUSaveBridge
             else curActive = (ushort)(curActive & ~0x0001);
             WriteU16(data, off + 0x0A, curActive);
 
-            WriteU32(data, off + 0x18, Level);
+            WriteU16(data, off + 0x1A, (ushort)Level);
             WriteU32(data, off + 0x24, Exp);
 
             WriteU32(data, off + 0x28, MaxHp);
