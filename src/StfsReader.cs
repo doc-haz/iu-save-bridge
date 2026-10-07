@@ -24,7 +24,7 @@ namespace IUSaveBridge
         public uint CapellLevel { get; set; }
         public bool Crc1Valid { get; set; }
         public bool Crc2Valid { get; set; }
-        public string DetectedRegion { get; set; }
+        public string DetectedProfile { get; set; }
     }
 
     public static class StfsReader
@@ -236,11 +236,14 @@ namespace IUSaveBridge
                 }
                 catch { }
 
-                // Region detection
-                string detectedRegion = SaveManager.RegionNtscU;
+                // Profile detection. Xbox 360 media IDs for Infinite Undiscovery are only reliably
+                // known for the retail NTSC-U disc, which maps to the modern USA profile. Other
+                // editions are ambiguous from the container alone, so we default to USA and let
+                // the user pick the exact target profile in the import dialog.
+                string detectedProfile = SaveManager.ProfileUsa;
                 if (mediaId == 0x20854892 || mediaId == 0x2B0C46F0)
                 {
-                    detectedRegion = SaveManager.RegionNtscU;
+                    detectedProfile = SaveManager.ProfileUsa;
                 }
 
                 return new StfsSaveInfo
@@ -262,7 +265,7 @@ namespace IUSaveBridge
                     CapellLevel = capellLevel,
                     Crc1Valid = (payload.StoredCrc1 == payload.CalculatedCrc1),
                     Crc2Valid = (payload.StoredCrc2 == payload.CalculatedCrc2),
-                    DetectedRegion = detectedRegion
+                    DetectedProfile = detectedProfile
                 };
             }
         }

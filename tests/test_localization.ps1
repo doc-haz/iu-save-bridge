@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 Write-Host "================================================="
-Write-Host "  IU Save Editor v2.2 - Localization Test Suite"
+Write-Host "  IU Save Editor v2.3 - Localization Test Suite"
 Write-Host "================================================="
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -9,9 +9,17 @@ $repoRoot = Split-Path -Parent $scriptDir
 $workDir = Join-Path $scriptDir "work"
 if (! (Test-Path $workDir)) { New-Item -ItemType Directory -Force -Path $workDir | Out-Null }
 
-$fixtureDat = Join-Path $scriptDir "fixtures\MockRecomp\NTSC-U\saves\1234567890ABCDEF\535107DB\00000001\InfiniteUndiscovery_0001.bin\InfiniteUndiscovery.dat"
+$fixtureDat = Join-Path $workDir "MockRecomp\USA\saves\1234567890ABCDEF\535107DB\00000001\InfiniteUndiscovery_0001.bin\InfiniteUndiscovery.dat"
 $slot2Copy = Join-Path $workDir "Slot2_Copy.dat"
-Copy-Item $fixtureDat $slot2Copy -Force
+if (Test-Path $fixtureDat) {
+    Copy-Item $fixtureDat $slot2Copy -Force
+} else {
+    $synthData = New-Object byte[] 409600
+    $synthData[0] = 0x55; $synthData[1] = 0x44; $synthData[2] = 0x53; $synthData[3] = 0x56
+    $synthData[7] = 0x33
+    $synthData[8] = 0x53; $synthData[9] = 0x51; $synthData[10] = 0x07; $synthData[11] = 0xDB
+    [System.IO.File]::WriteAllBytes($slot2Copy, $synthData)
+}
 
 # Compile temporary test binary if needed
 $bridgeExe = Join-Path $workDir "IU_Save_Bridge.exe"
@@ -28,6 +36,7 @@ $csc = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
   "$repoRoot\src\CharacterData.cs" `
   "$repoRoot\src\ItemData.cs" `
   "$repoRoot\src\SaveManager.cs" `
+  "$repoRoot\src\StfsReader.cs" `
   "$repoRoot\src\Loc.cs" `
   "$repoRoot\src\MainForm.cs" `
   "$repoRoot\src\Program.cs" | Out-Null

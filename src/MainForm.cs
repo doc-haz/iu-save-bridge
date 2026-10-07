@@ -11,7 +11,8 @@ namespace IUSaveBridge
     {
         // Data & Session State
         private string m_recompRoot = null;
-        private string m_activeRegion = SaveManager.RegionNtscU;
+        private string m_activeProfile = SaveManager.ProfileUsa;
+        private bool m_suppressProfileEvents = false;
         private SavePayload m_currentPayload = null;
         private SaveSlotInfo m_activeSlot = null;
         private List<SaveSlotInfo> m_detectedSlots = new List<SaveSlotInfo>();
@@ -29,8 +30,8 @@ namespace IUSaveBridge
         private Label m_lblHeaderTitle;
         private Label m_lblHeaderSubtitle;
         private Label m_lblActiveSaveBadge;
-        private Label m_lblRegion;
-        private ComboBox m_cbRegion;
+        private Label m_lblProfile;
+        private ComboBox m_cbProfile;
         private Label m_lblLang;
         private ComboBox m_cbLanguage;
 
@@ -44,11 +45,75 @@ namespace IUSaveBridge
 
         public TabControl TabCtrl { get { return m_tabControl; } }
         public void SetLanguageDirect(string lang) { SwitchLanguage(lang); }
-        public void SetRegionDirect(string reg) { SwitchRegion(reg); }
+        public void SetProfileDirect(string profile) { SwitchProfile(profile); }
+        public string ActiveProfile { get { return m_activeProfile; } }
+        public int ProfileChoiceCount { get { return m_cbSettingsProfile != null ? m_cbSettingsProfile.Items.Count : 0; } }
+
+        /// <summary>
+        /// Rebuilds both profile selectors (header + settings) for the current language and the
+        /// profiles actually installed under the detected Recomp root. All five supported profiles
+        /// are always shown; ones without a saves folder are suffixed as "(not installed)".
+        /// </summary>
+        private void PopulateProfileSelectors()
+        {
+            if (m_cbProfile == null || m_cbSettingsProfile == null) return;
+
+            string active = SaveManager.NormalizeProfile(m_activeProfile) ?? SaveManager.DefaultProfile;
+
+            List<string> available = new List<string>();
+            if (!string.IsNullOrEmpty(m_recompRoot) && Directory.Exists(m_recompRoot))
+            {
+                available = SaveManager.GetAvailableProfiles(m_recompRoot);
+            }
+
+            m_suppressProfileEvents = true;
+            try
+            {
+                ComboBox[] combos = new ComboBox[] { m_cbProfile, m_cbSettingsProfile };
+                foreach (ComboBox cb in combos)
+                {
+                    cb.Items.Clear();
+                    foreach (string code in SaveManager.SupportedProfiles)
+                    {
+                        bool installed = false;
+                        foreach (string a in available)
+                        {
+                            if (string.Equals(a, code, StringComparison.OrdinalIgnoreCase)) { installed = true; break; }
+                        }
+                        cb.Items.Add(BuildProfileDisplay(code, installed));
+                    }
+
+                    int idx = Array.IndexOf(SaveManager.SupportedProfiles, active);
+                    if (idx < 0) idx = 0;
+                    cb.SelectedIndex = idx;
+                }
+            }
+            finally
+            {
+                m_suppressProfileEvents = false;
+            }
+        }
+
+        private static string BuildProfileDisplay(string code, bool installed)
+        {
+            string display = Loc.ProfileDisplay(code);
+            return installed ? display : display + " " + Loc.Get("ProfileNotInstalled");
+        }
+
+        // Main Menu
+        private MenuStrip m_mainMenu;
+        private ToolStripMenuItem m_menuFile;
+        private ToolStripMenuItem m_menuFileImportXbox;
+        private ToolStripMenuItem m_menuFileOpenSaveFolder;
+        private ToolStripSeparator m_menuFileSep;
+        private ToolStripMenuItem m_menuFileExit;
+        private ToolStripMenuItem m_menuHelp;
+        private ToolStripMenuItem m_menuHelpAbout;
 
         // Saves Tab Controls
         private Panel m_pnlSavesCard;
         private Label m_lblGameLocationBanner;
+        private Button m_btnImportXbox;
         private ListView m_lvSlots;
         private PictureBox m_pbThumbnail;
         private Label m_lblSlotDetailTitle;
@@ -130,8 +195,8 @@ namespace IUSaveBridge
         private Button m_btnBrowseRecomp;
         private Button m_btnOpenSavesDirSettings;
         private GroupBox m_gbPrefs;
-        private Label m_lblPrefRegion;
-        private ComboBox m_cbSettingsRegion;
+        private Label m_lblPrefProfile;
+        private ComboBox m_cbSettingsProfile;
         private Label m_lblPrefLang;
         private ComboBox m_cbSettingsLang;
         private Button m_btnOpenBackupsDirSettings;
@@ -151,7 +216,7 @@ namespace IUSaveBridge
             // Load preferred settings
             AppConfig cfg = SaveManager.LoadConfig();
             Loc.SetLanguage(cfg.Language);
-            m_activeRegion = !string.IsNullOrEmpty(cfg.Region) ? cfg.Region : SaveManager.RegionNtscU;
+            m_activeProfile = SaveManager.NormalizeProfile(cfg.Profile) ?? SaveManager.DefaultProfile;
 
             LoadVisualAssets();
             InitializeComponent();
@@ -254,6 +319,50 @@ namespace IUSaveBridge
                 this.BackgroundImageLayout = ImageLayout.Stretch;
             }
 
+            // 0. Main Menu Bar
+            m_mainMenu = new MenuStrip();
+            m_mainMenu.BackColor = Color.FromArgb(14, 22, 38);
+            m_mainMenu.ForeColor = Color.FromArgb(235, 240, 248);
+            m_mainMenu.Font = new Font("Segoe UI", 9F);
+
+            m_menuFile = new ToolStripMenuItem();
+            m_menuFile.ForeColor = Color.FromArgb(235, 240, 248);
+
+            m_menuFileImportXbox = new ToolStripMenuItem();
+            m_menuFileImportXbox.ForeColor = Color.FromArgb(235, 240, 248);
+            m_menuFileImportXbox.ShortcutKeys = Keys.Control | Keys.I;
+            m_menuFileImportXbox.Click += OnImportXboxSave;
+
+            m_menuFileOpenSaveFolder = new ToolStripMenuItem();
+            m_menuFileOpenSaveFolder.ForeColor = Color.FromArgb(235, 240, 248);
+            m_menuFileOpenSaveFolder.Click += (s, e) => OpenCurrentProfileSaveFolder();
+
+            m_menuFileSep = new ToolStripSeparator();
+
+            m_menuFileExit = new ToolStripMenuItem();
+            m_menuFileExit.ForeColor = Color.FromArgb(235, 240, 248);
+            m_menuFileExit.Click += (s, e) => this.Close();
+
+            m_menuFile.DropDownItems.Add(m_menuFileImportXbox);
+            m_menuFile.DropDownItems.Add(m_menuFileOpenSaveFolder);
+            m_menuFile.DropDownItems.Add(m_menuFileSep);
+            m_menuFile.DropDownItems.Add(m_menuFileExit);
+
+            m_menuHelp = new ToolStripMenuItem();
+            m_menuHelp.ForeColor = Color.FromArgb(235, 240, 248);
+
+            m_menuHelpAbout = new ToolStripMenuItem();
+            m_menuHelpAbout.ForeColor = Color.FromArgb(235, 240, 248);
+            m_menuHelpAbout.Click += (s, e) => m_tabControl.SelectedTab = m_tabSettings;
+            m_menuHelp.DropDownItems.Add(m_menuHelpAbout);
+
+            m_mainMenu.Items.Add(m_menuFile);
+            m_mainMenu.Items.Add(m_menuHelp);
+
+            ApplyDarkMenuRenderer(m_mainMenu, new DarkMenuRenderer());
+
+            this.MainMenuStrip = m_mainMenu;
+
             // 1. Top Header Bar (Deep sapphire navy with subtle gold border)
             m_pnlHeader = new Panel();
             m_pnlHeader.Dock = DockStyle.Top;
@@ -296,23 +405,21 @@ namespace IUSaveBridge
             m_lblActiveSaveBadge.ForeColor = Color.FromArgb(220, 230, 250);
             m_lblActiveSaveBadge.BorderStyle = BorderStyle.FixedSingle;
 
-            // Region Selector
-            m_lblRegion = new Label();
-            m_lblRegion.Font = new Font("Segoe UI", 8.5F, FontStyle.Regular);
-            m_lblRegion.ForeColor = Color.FromArgb(210, 225, 245);
-            m_lblRegion.Location = new Point(725, 18);
-            m_lblRegion.Size = new Size(55, 20);
-            m_lblRegion.TextAlign = ContentAlignment.MiddleRight;
+            // Profile Selector
+            m_lblProfile = new Label();
+            m_lblProfile.Font = new Font("Segoe UI", 8.5F, FontStyle.Regular);
+            m_lblProfile.ForeColor = Color.FromArgb(210, 225, 245);
+            m_lblProfile.Location = new Point(690, 18);
+            m_lblProfile.Size = new Size(60, 20);
+            m_lblProfile.TextAlign = ContentAlignment.MiddleRight;
 
-            m_cbRegion = new ComboBox();
-            m_cbRegion.DropDownStyle = ComboBoxStyle.DropDownList;
-            m_cbRegion.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
-            m_cbRegion.Location = new Point(785, 16);
-            m_cbRegion.Size = new Size(95, 24);
-            m_cbRegion.Items.Add(SaveManager.RegionNtscU);
-            m_cbRegion.Items.Add(SaveManager.RegionPal);
-            m_cbRegion.SelectedIndex = (m_activeRegion == SaveManager.RegionPal) ? 1 : 0;
-            m_cbRegion.SelectedIndexChanged += OnRegionDropdownChanged;
+            m_cbProfile = new ComboBox();
+            m_cbProfile.DropDownStyle = ComboBoxStyle.DropDownList;
+            m_cbProfile.Font = new Font("Segoe UI", 8.5F, FontStyle.Bold);
+            m_cbProfile.Location = new Point(755, 16);
+            m_cbProfile.Size = new Size(125, 24);
+            m_cbProfile.DropDownWidth = 240;
+            m_cbProfile.SelectedIndexChanged += OnProfileDropdownChanged;
 
             // Language Selector
             m_lblLang = new Label();
@@ -336,8 +443,8 @@ namespace IUSaveBridge
             m_pnlHeader.Controls.Add(m_lblHeaderTitle);
             m_pnlHeader.Controls.Add(m_lblHeaderSubtitle);
             m_pnlHeader.Controls.Add(m_lblActiveSaveBadge);
-            m_pnlHeader.Controls.Add(m_lblRegion);
-            m_pnlHeader.Controls.Add(m_cbRegion);
+            m_pnlHeader.Controls.Add(m_lblProfile);
+            m_pnlHeader.Controls.Add(m_cbProfile);
             m_pnlHeader.Controls.Add(m_lblLang);
             m_pnlHeader.Controls.Add(m_cbLanguage);
 
@@ -397,6 +504,7 @@ namespace IUSaveBridge
             // Assemble Form
             this.Controls.Add(m_tabControl);
             this.Controls.Add(m_pnlHeader);
+            this.Controls.Add(m_mainMenu);
             this.Controls.Add(m_pnlBottomLog);
 
             // Build Individual Tabs
@@ -422,9 +530,19 @@ namespace IUSaveBridge
             // Location banner
             m_lblGameLocationBanner = new Label();
             m_lblGameLocationBanner.Location = new Point(14, 12);
-            m_lblGameLocationBanner.Size = new Size(990, 22);
+            m_lblGameLocationBanner.Size = new Size(720, 22);
             m_lblGameLocationBanner.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
             m_lblGameLocationBanner.ForeColor = Color.FromArgb(30, 50, 90);
+
+            // Import Xbox 360 Save Button
+            m_btnImportXbox = new Button();
+            m_btnImportXbox.Location = new Point(744, 8);
+            m_btnImportXbox.Size = new Size(256, 28);
+            m_btnImportXbox.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+            m_btnImportXbox.BackColor = Color.FromArgb(41, 128, 185);
+            m_btnImportXbox.ForeColor = Color.White;
+            m_btnImportXbox.FlatStyle = FlatStyle.Flat;
+            m_btnImportXbox.Click += OnImportXboxSave;
 
             // Left: Slots ListView
             m_lvSlots = new ListView();
@@ -564,7 +682,7 @@ namespace IUSaveBridge
             m_btnOpenSaveFolder.Location = new Point(580, 120);
             m_btnOpenSaveFolder.Size = new Size(180, 36);
             m_btnOpenSaveFolder.Font = new Font("Segoe UI", 9F);
-            m_btnOpenSaveFolder.Click += (s, e) => OpenCurrentRegionSaveFolder();
+            m_btnOpenSaveFolder.Click += (s, e) => OpenCurrentProfileSaveFolder();
 
             m_btnManualBackup = new Button();
             m_btnManualBackup.Location = new Point(770, 120);
@@ -584,6 +702,7 @@ namespace IUSaveBridge
             m_gbActiveSlot.Controls.Add(m_btnManualBackup);
 
             m_pnlSavesCard.Controls.Add(m_lblGameLocationBanner);
+            m_pnlSavesCard.Controls.Add(m_btnImportXbox);
             m_pnlSavesCard.Controls.Add(m_lvSlots);
             m_pnlSavesCard.Controls.Add(pnlThumbBox);
             m_pnlSavesCard.Controls.Add(m_gbActiveSlot);
@@ -892,7 +1011,7 @@ namespace IUSaveBridge
             m_lvBackups.BackColor = Color.White;
             m_lvBackups.Font = new Font("Segoe UI", 9F);
             m_lvBackups.Columns.Add("Backup File", 260);
-            m_lvBackups.Columns.Add("Region", 70);
+            m_lvBackups.Columns.Add("Profile", 90);
             m_lvBackups.Columns.Add("Slot", 60);
             m_lvBackups.Columns.Add("Date & Time", 140);
             m_lvBackups.Columns.Add("Fol", 90);
@@ -935,7 +1054,7 @@ namespace IUSaveBridge
             m_btnOpenBackupsFolder.Location = new Point(415, 435);
             m_btnOpenBackupsFolder.Size = new Size(200, 36);
             m_btnOpenBackupsFolder.Click += (s, e) => {
-                string dir = SaveManager.GetBackupsDirForRegion(m_activeRegion);
+                string dir = SaveManager.GetBackupsDirForProfile(m_activeProfile);
                 if (Directory.Exists(dir)) System.Diagnostics.Process.Start("explorer.exe", dir);
             };
 
@@ -990,7 +1109,7 @@ namespace IUSaveBridge
             m_btnOpenSavesDirSettings.Location = new Point(18, 82);
             m_btnOpenSavesDirSettings.Size = new Size(220, 28);
             m_btnOpenSavesDirSettings.Font = new Font("Segoe UI", 9F);
-            m_btnOpenSavesDirSettings.Click += (s, e) => OpenCurrentRegionSaveFolder();
+            m_btnOpenSavesDirSettings.Click += (s, e) => OpenCurrentProfileSaveFolder();
 
             m_btnOpenBackupsDirSettings = new Button();
             m_btnOpenBackupsDirSettings.Location = new Point(250, 82);
@@ -1015,31 +1134,26 @@ namespace IUSaveBridge
             m_gbPrefs.ForeColor = Color.FromArgb(25, 45, 80);
             m_gbPrefs.Text = Loc.Get("GbPreferences");
 
-            m_lblPrefRegion = new Label();
-            m_lblPrefRegion.Location = new Point(18, 30);
-            m_lblPrefRegion.Size = new Size(160, 20);
-            m_lblPrefRegion.Font = new Font("Segoe UI", 9F);
+            m_lblPrefProfile = new Label();
+            m_lblPrefProfile.Location = new Point(18, 30);
+            m_lblPrefProfile.Size = new Size(300, 20);
+            m_lblPrefProfile.Font = new Font("Segoe UI", 9F);
 
-            m_cbSettingsRegion = new ComboBox();
-            m_cbSettingsRegion.DropDownStyle = ComboBoxStyle.DropDownList;
-            m_cbSettingsRegion.Location = new Point(18, 52);
-            m_cbSettingsRegion.Size = new Size(160, 24);
-            m_cbSettingsRegion.Items.Add(SaveManager.RegionNtscU);
-            m_cbSettingsRegion.Items.Add(SaveManager.RegionPal);
-            m_cbSettingsRegion.SelectedIndex = (m_activeRegion == SaveManager.RegionPal) ? 1 : 0;
-            m_cbSettingsRegion.SelectedIndexChanged += (s, e) => {
-                string reg = (m_cbSettingsRegion.SelectedIndex == 1) ? SaveManager.RegionPal : SaveManager.RegionNtscU;
-                SwitchRegion(reg);
-            };
+            m_cbSettingsProfile = new ComboBox();
+            m_cbSettingsProfile.DropDownStyle = ComboBoxStyle.DropDownList;
+            m_cbSettingsProfile.Location = new Point(18, 52);
+            m_cbSettingsProfile.Size = new Size(240, 24);
+            m_cbSettingsProfile.DropDownWidth = 300;
+            m_cbSettingsProfile.SelectedIndexChanged += OnProfileDropdownChanged;
 
             m_lblPrefLang = new Label();
-            m_lblPrefLang.Location = new Point(220, 30);
+            m_lblPrefLang.Location = new Point(300, 30);
             m_lblPrefLang.Size = new Size(160, 20);
             m_lblPrefLang.Font = new Font("Segoe UI", 9F);
 
             m_cbSettingsLang = new ComboBox();
             m_cbSettingsLang.DropDownStyle = ComboBoxStyle.DropDownList;
-            m_cbSettingsLang.Location = new Point(220, 52);
+            m_cbSettingsLang.Location = new Point(300, 52);
             m_cbSettingsLang.Size = new Size(160, 24);
             m_cbSettingsLang.Items.Add("English");
             m_cbSettingsLang.Items.Add("Español");
@@ -1049,8 +1163,8 @@ namespace IUSaveBridge
                 SwitchLanguage(lang);
             };
 
-            m_gbPrefs.Controls.Add(m_lblPrefRegion);
-            m_gbPrefs.Controls.Add(m_cbSettingsRegion);
+            m_gbPrefs.Controls.Add(m_lblPrefProfile);
+            m_gbPrefs.Controls.Add(m_cbSettingsProfile);
             m_gbPrefs.Controls.Add(m_lblPrefLang);
             m_gbPrefs.Controls.Add(m_cbSettingsLang);
 
@@ -1109,7 +1223,7 @@ namespace IUSaveBridge
             m_lblHeaderTitle.Text = Loc.Get("AppTitle");
             m_lblHeaderSubtitle.Text = Loc.Get("AppSubtitle");
             m_lblLang.Text = Loc.Get("LangLabel");
-            m_lblRegion.Text = Loc.Get("RegionLabel");
+            m_lblProfile.Text = Loc.Get("ProfileLabel");
 
             // Tabs
             m_tabSaves.Text = Loc.Get("TabSaves");
@@ -1118,7 +1232,16 @@ namespace IUSaveBridge
             m_tabBackups.Text = Loc.Get("TabBackups");
             m_tabSettings.Text = Loc.Get("TabSettings");
 
+            // Main Menu
+            if (m_menuFile != null) m_menuFile.Text = Loc.Get("MenuFile");
+            if (m_menuFileImportXbox != null) m_menuFileImportXbox.Text = Loc.Get("MenuFileImportXbox");
+            if (m_menuFileOpenSaveFolder != null) m_menuFileOpenSaveFolder.Text = Loc.Get("MenuFileOpenSaveFolder");
+            if (m_menuFileExit != null) m_menuFileExit.Text = Loc.Get("MenuFileExit");
+            if (m_menuHelp != null) m_menuHelp.Text = Loc.Get("MenuHelp");
+            if (m_menuHelpAbout != null) m_menuHelpAbout.Text = Loc.Get("MenuHelpAbout");
+
             // Tab 1: Saves
+            if (m_btnImportXbox != null) m_btnImportXbox.Text = Loc.Get("BtnImportXboxSave");
             if (m_gbActiveSlot != null) m_gbActiveSlot.Text = Loc.Get("GbActiveSlotDetails");
             if (m_lvSlots.Columns.Count >= 6)
             {
@@ -1177,7 +1300,7 @@ namespace IUSaveBridge
             if (m_lvBackups.Columns.Count >= 6)
             {
                 m_lvBackups.Columns[0].Text = Loc.Get("ColBkpFile");
-                m_lvBackups.Columns[1].Text = Loc.Get("ColBkpRegion");
+                m_lvBackups.Columns[1].Text = Loc.Get("ColBkpProfile");
                 m_lvBackups.Columns[2].Text = Loc.Get("ColBkpSlot");
                 m_lvBackups.Columns[3].Text = Loc.Get("ColBkpDate");
                 m_lvBackups.Columns[4].Text = Loc.Get("ColBkpFol");
@@ -1194,7 +1317,7 @@ namespace IUSaveBridge
             m_btnOpenSavesDirSettings.Text = Loc.Get("BtnOpenSaveDir");
             m_btnOpenBackupsDirSettings.Text = Loc.Get("BtnOpenBackupsFolder");
             if (m_gbPrefs != null) m_gbPrefs.Text = Loc.Get("GbPreferences");
-            m_lblPrefRegion.Text = Loc.Get("LblPreferredRegion");
+            m_lblPrefProfile.Text = Loc.Get("LblPreferredProfile");
             m_lblPrefLang.Text = Loc.Get("LblPreferredLanguage");
             if (m_gbAbout != null) m_gbAbout.Text = Loc.Get("GbAbout");
             m_lblAboutTitle.Text = Loc.Get("AboutAppName");
@@ -1221,20 +1344,29 @@ namespace IUSaveBridge
             ApplyLocalization();
         }
 
-        private void SwitchRegion(string region)
+        private void SwitchProfile(string profile)
         {
-            if (m_activeRegion == region) return;
-            m_activeRegion = region;
+            string code = SaveManager.NormalizeProfile(profile) ?? SaveManager.DefaultProfile;
+            if (string.Equals(m_activeProfile, code, StringComparison.OrdinalIgnoreCase)) return;
+            m_activeProfile = code;
 
             AppConfig cfg = SaveManager.LoadConfig();
-            cfg.Region = region;
+            cfg.Profile = code;
             SaveManager.SaveConfig(cfg);
 
-            int desiredIdx = (region == SaveManager.RegionPal) ? 1 : 0;
-            if (m_cbRegion.SelectedIndex != desiredIdx) m_cbRegion.SelectedIndex = desiredIdx;
-            if (m_cbSettingsRegion.SelectedIndex != desiredIdx) m_cbSettingsRegion.SelectedIndex = desiredIdx;
+            int desiredIdx = Array.IndexOf(SaveManager.SupportedProfiles, code);
+            m_suppressProfileEvents = true;
+            try
+            {
+                if (desiredIdx >= 0 && m_cbProfile.SelectedIndex != desiredIdx) m_cbProfile.SelectedIndex = desiredIdx;
+                if (desiredIdx >= 0 && m_cbSettingsProfile.SelectedIndex != desiredIdx) m_cbSettingsProfile.SelectedIndex = desiredIdx;
+            }
+            finally
+            {
+                m_suppressProfileEvents = false;
+            }
 
-            Log(Loc.Format("LogRegionChanged", region));
+            Log(Loc.Format("LogProfileChanged", Loc.ProfileDisplay(code)));
             RefreshSaveSlots();
             RefreshBackupsList();
             UpdateRecompStatus();
@@ -1246,10 +1378,15 @@ namespace IUSaveBridge
             if (lang != Loc.CurrentLanguage) SwitchLanguage(lang);
         }
 
-        private void OnRegionDropdownChanged(object sender, EventArgs e)
+        private void OnProfileDropdownChanged(object sender, EventArgs e)
         {
-            string reg = (m_cbRegion.SelectedIndex == 1) ? SaveManager.RegionPal : SaveManager.RegionNtscU;
-            if (reg != m_activeRegion) SwitchRegion(reg);
+            if (m_suppressProfileEvents) return;
+
+            ComboBox cb = sender as ComboBox;
+            if (cb == null || cb.SelectedIndex < 0 || cb.SelectedIndex >= SaveManager.SupportedProfiles.Length) return;
+
+            string code = SaveManager.SupportedProfiles[cb.SelectedIndex];
+            if (!string.Equals(code, m_activeProfile, StringComparison.OrdinalIgnoreCase)) SwitchProfile(code);
         }
 
         private void UpdateActiveBadge()
@@ -1263,7 +1400,7 @@ namespace IUSaveBridge
             }
             else
             {
-                string tag = Loc.Format("BadgeActiveSave", m_activeSlot.Region, m_activeSlot.SlotNumber);
+                string tag = Loc.Format("BadgeActiveSave", m_activeSlot.Profile, m_activeSlot.SlotNumber);
                 if (m_hasUnsavedChanges) tag += " *";
                 m_lblActiveSaveBadge.Text = tag;
                 m_lblActiveSaveBadge.BackColor = Color.FromArgb(20, 80, 50);
@@ -1295,15 +1432,17 @@ namespace IUSaveBridge
 
         private void UpdateRecompStatus()
         {
+            PopulateProfileSelectors();
+
             if (string.IsNullOrEmpty(m_recompRoot) || !Directory.Exists(m_recompRoot))
             {
-                m_lblGameLocationBanner.Text = "Game: Infinite Undiscovery Recomp (Location Not Configured) | Region: " + m_activeRegion;
+                m_lblGameLocationBanner.Text = "Game: Infinite Undiscovery Recomp (Location Not Configured) | Profile: " + m_activeProfile;
                 m_txtRecompPath.Text = "";
             }
             else
             {
-                string savesDir = SaveManager.GetRegionSavesDir(m_recompRoot, m_activeRegion);
-                m_lblGameLocationBanner.Text = string.Format("Game: Infinite Undiscovery Recomp | Region: {0} | Saves: {1}", m_activeRegion, savesDir);
+                string savesDir = SaveManager.GetProfileSavesDir(m_recompRoot, m_activeProfile);
+                m_lblGameLocationBanner.Text = string.Format("Game: Infinite Undiscovery Recomp | Profile: {0} | Saves: {1}", m_activeProfile, savesDir);
                 m_txtRecompPath.Text = m_recompRoot;
             }
         }
@@ -1329,15 +1468,25 @@ namespace IUSaveBridge
                         AppConfig cfg = SaveManager.LoadConfig();
                         cfg.RecompPath = selected;
 
-                        // Check available regions
-                        var regions = SaveManager.GetAvailableRegions(selected);
-                        if (regions.Count == 1)
+                        // Keep the current profile if it is installed; otherwise fall back to the
+                        // first available profile reported by the Recomp installation.
+                        var profiles = SaveManager.GetAvailableProfiles(selected);
+                        if (profiles.Count > 0)
                         {
-                            m_activeRegion = regions[0];
-                            cfg.Region = m_activeRegion;
+                            bool currentOk = false;
+                            foreach (string p in profiles)
+                            {
+                                if (string.Equals(p, m_activeProfile, StringComparison.OrdinalIgnoreCase)) { currentOk = true; break; }
+                            }
+                            if (!currentOk)
+                            {
+                                m_activeProfile = profiles[0];
+                            }
+                            cfg.Profile = m_activeProfile;
                         }
                         SaveManager.SaveConfig(cfg);
 
+                        PopulateProfileSelectors();
                         UpdateRecompStatus();
                         RefreshSaveSlots();
                         Log(Loc.Format("LogRecompDetected", selected));
@@ -1354,11 +1503,11 @@ namespace IUSaveBridge
             }
         }
 
-        private void OpenCurrentRegionSaveFolder()
+        private void OpenCurrentProfileSaveFolder()
         {
             if (!string.IsNullOrEmpty(m_recompRoot))
             {
-                string savesDir = SaveManager.GetRegionSavesDir(m_recompRoot, m_activeRegion);
+                string savesDir = SaveManager.GetProfileSavesDir(m_recompRoot, m_activeProfile);
                 if (Directory.Exists(savesDir))
                 {
                     System.Diagnostics.Process.Start("explorer.exe", savesDir);
@@ -1382,7 +1531,7 @@ namespace IUSaveBridge
 
             if (!string.IsNullOrEmpty(m_recompRoot))
             {
-                m_detectedSlots = SaveManager.ScanSlots(m_recompRoot, m_activeRegion);
+                m_detectedSlots = SaveManager.ScanSlots(m_recompRoot, m_activeProfile);
             }
 
             foreach (var slot in m_detectedSlots)
@@ -1406,7 +1555,7 @@ namespace IUSaveBridge
                 ClearThumbnailPreview();
             }
 
-            Log(Loc.Format("LogScanCompleted", m_detectedSlots.Count, m_activeRegion));
+            Log(Loc.Format("LogScanCompleted", m_detectedSlots.Count, Loc.ProfileDisplay(m_activeProfile)));
         }
 
         private void OnSlotSelectionChanged(object sender, EventArgs e)
@@ -1418,7 +1567,7 @@ namespace IUSaveBridge
             }
 
             SaveSlotInfo slot = (SaveSlotInfo)m_lvSlots.SelectedItems[0].Tag;
-            m_lblSlotDetailTitle.Text = string.Format("{0} — {1}", slot.SlotName, slot.Region);
+            m_lblSlotDetailTitle.Text = string.Format("{0} — {1}", slot.SlotName, slot.Profile);
             m_lblSlotDetailInfo.Text = string.Format(
                 "Fol: {0:N0}\nModified: {1:yyyy-MM-dd HH:mm:ss}\nCRC1: {2} | CRC2: {3}",
                 slot.Fol, slot.LastModified, slot.Crc1Valid ? "OK" : "ERR", slot.Crc2Valid ? "OK" : "ERR");
@@ -1515,10 +1664,10 @@ namespace IUSaveBridge
                 }
 
                 // Direct write with auto-backup and atomic verification
-                string bkp = SaveManager.CreateBackup(m_activeSlot.PayloadPath, m_activeSlot.Region, m_activeSlot.SlotName, m_activeSlot.SlotNumber);
+                string bkp = SaveManager.CreateBackup(m_activeSlot.PayloadPath, m_activeSlot.Profile, m_activeSlot.SlotName, m_activeSlot.SlotNumber);
                 Log(Loc.Format("LogAutoBackupCreated", Path.GetFileName(bkp)));
 
-                SaveManager.SavePayloadDirect(m_currentPayload, m_activeSlot.PayloadPath, m_activeSlot.Region, m_activeSlot.SlotName, m_activeSlot.SlotNumber);
+                SaveManager.SavePayloadDirect(m_currentPayload, m_activeSlot.PayloadPath, m_activeSlot.Profile, m_activeSlot.SlotName, m_activeSlot.SlotNumber);
 
                 m_hasUnsavedChanges = false;
                 UpdateChecksumDisplay();
@@ -1544,7 +1693,7 @@ namespace IUSaveBridge
 
             try
             {
-                string bkp = SaveManager.CreateBackup(slot.PayloadPath, slot.Region, slot.SlotName, slot.SlotNumber);
+                string bkp = SaveManager.CreateBackup(slot.PayloadPath, slot.Profile, slot.SlotName, slot.SlotNumber);
                 RefreshBackupsList();
                 Log(Loc.Format("LogAutoBackupCreated", Path.GetFileName(bkp)));
                 MessageBox.Show(this, Loc.Format("MsgBackupCreated", Path.GetFileName(bkp)), Loc.Get("TitleBackupCreated"), MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -1720,12 +1869,12 @@ namespace IUSaveBridge
         public void RefreshBackupsList()
         {
             m_lvBackups.Items.Clear();
-            List<BackupItemInfo> backups = SaveManager.ScanBackups(m_activeRegion);
+            List<BackupItemInfo> backups = SaveManager.ScanBackups(m_activeProfile);
 
             foreach (var b in backups)
             {
                 ListViewItem lvi = new ListViewItem(b.FileName);
-                lvi.SubItems.Add(b.Region);
+                lvi.SubItems.Add(b.IsLegacyBackup ? b.Profile + Loc.Get("BackupLegacySuffix") : b.Profile);
                 lvi.SubItems.Add(b.SlotNumber > 0 ? b.SlotNumber.ToString() : "-");
                 lvi.SubItems.Add(b.Timestamp.ToString("yyyy-MM-dd HH:mm:ss"));
                 lvi.SubItems.Add(b.Fol > 0 ? b.Fol.ToString("N0") : "---");
@@ -1784,7 +1933,7 @@ namespace IUSaveBridge
 
             DialogResult dr = MessageBox.Show(
                 this,
-                Loc.Format("MsgConfirmRestore", b.FileName, m_activeSlot.Region, m_activeSlot.SlotNumber),
+                Loc.Format("MsgConfirmRestore", b.FileName, m_activeSlot.Profile, m_activeSlot.SlotNumber),
                 Loc.Get("TitleConfirm"),
                 MessageBoxButtons.YesNo,
                 MessageBoxIcon.Question);
@@ -1793,7 +1942,7 @@ namespace IUSaveBridge
 
             try
             {
-                SaveManager.RestoreBackup(b.FullPath, m_activeSlot.PayloadPath, m_activeSlot.Region, m_activeSlot.SlotName, m_activeSlot.SlotNumber);
+                SaveManager.RestoreBackup(b.FullPath, m_activeSlot.PayloadPath, m_activeSlot.Profile, m_activeSlot.SlotName, m_activeSlot.SlotNumber);
                 Log(Loc.Format("LogBackupRestored", b.FileName, m_activeSlot.SlotNumber));
 
                 // Reload active payload
@@ -1841,6 +1990,556 @@ namespace IUSaveBridge
                 }
             }
             base.OnFormClosing(e);
+        }
+        #endregion
+
+        #region Xbox 360 Save Import
+        private void OnImportXboxSave(object sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(m_recompRoot))
+            {
+                m_recompRoot = SaveManager.FindRecompRoot();
+            }
+
+            if (string.IsNullOrEmpty(m_recompRoot))
+            {
+                MessageBox.Show(
+                    this,
+                    Loc.Get("ImportErrNoRecomp"),
+                    Loc.Get("TitleError"),
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                m_tabControl.SelectedTab = m_tabSettings;
+                return;
+            }
+
+            using (OpenFileDialog ofd = new OpenFileDialog())
+            {
+                ofd.Title = Loc.Get("ImportTitle");
+                ofd.Filter = Loc.Get("FileFilterXboxSave");
+                ofd.RestoreDirectory = true;
+
+                if (ofd.ShowDialog(this) != DialogResult.OK)
+                    return;
+
+                string selectedPath = ofd.FileName;
+                if (!File.Exists(selectedPath)) return;
+
+                // 1. Verify STFS container magic
+                if (!StfsReader.IsStfsContainer(selectedPath))
+                {
+                    MessageBox.Show(
+                        this,
+                        Loc.Get("ImportErrNotStfs"),
+                        Loc.Get("TitleError"),
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                    return;
+                }
+
+                // 2. Parse container
+                StfsSaveInfo info;
+                try
+                {
+                    info = StfsReader.Read(selectedPath);
+                }
+                catch (Exception ex)
+                {
+                    string msg = Loc.Get("ImportErrInvalidPayload") + "\n\n" + ex.Message;
+                    if (ex is InvalidDataException && ex.Message.Contains("Title ID"))
+                    {
+                        msg = Loc.Format("ImportErrTitleMismatch", 0, StfsReader.InfiniteUndiscoveryTitleId) + "\n\n" + ex.Message;
+                    }
+                    MessageBox.Show(
+                        this,
+                        msg,
+                        Loc.Get("TitleError"),
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                    return;
+                }
+
+                // 3. Show Preview dialog with Destination settings
+                bool promptAgain = true;
+                while (promptAgain)
+                {
+                    promptAgain = false;
+                    using (ImportPreviewForm dlg = new ImportPreviewForm(info, m_recompRoot, m_activeProfile))
+                    {
+                        if (dlg.ShowDialog(this) != DialogResult.OK)
+                            return;
+
+                        string targetProfile = dlg.SelectedProfile;
+                        string targetUserId = dlg.SelectedUserId;
+                        int targetSlot = dlg.SelectedSlotNumber;
+
+                        // 4. Conflict detection
+                        bool slotExists = SaveManager.SlotExists(m_recompRoot, targetProfile, targetUserId, targetSlot);
+                        if (slotExists)
+                        {
+                            string conflictPrompt = Loc.Format("ImportConflictMsg", targetSlot, Loc.ProfileDisplay(targetProfile), targetUserId);
+                            DialogResult dr = MessageBox.Show(
+                                this,
+                                conflictPrompt,
+                                Loc.Get("ImportConflictTitle"),
+                                MessageBoxButtons.YesNoCancel,
+                                MessageBoxIcon.Warning);
+
+                            if (dr == DialogResult.Cancel)
+                            {
+                                return;
+                            }
+                            if (dr == DialogResult.No)
+                            {
+                                // User wants to choose another slot -> re-open preview dialog
+                                promptAgain = true;
+                                continue;
+                            }
+                            // If Yes: proceed with replace
+                        }
+
+                        // 5. Perform import
+                        try
+                        {
+                            string importedDat = SaveManager.ImportXboxSave(info, m_recompRoot, targetProfile, targetUserId, targetSlot, true);
+
+                            // Switch profile if imported to a different profile
+                            if (!string.Equals(m_activeProfile, targetProfile, StringComparison.OrdinalIgnoreCase))
+                            {
+                                SwitchProfile(targetProfile);
+                            }
+                            else
+                            {
+                                RefreshSaveSlots();
+                            }
+
+                            // Auto-select the newly imported slot in list
+                            for (int i = 0; i < m_lvSlots.Items.Count; i++)
+                            {
+                                SaveSlotInfo si = m_lvSlots.Items[i].Tag as SaveSlotInfo;
+                                if (si != null && si.SlotNumber == targetSlot)
+                                {
+                                    m_lvSlots.Items[i].Selected = true;
+                                    m_lvSlots.Items[i].EnsureVisible();
+                                    break;
+                                }
+                            }
+
+                            // Load payload to display in tabs 1, 2, 3
+                            OpenSelectedSlot();
+
+                            Log(Loc.Format("ImportSuccessMsg", targetSlot, Loc.ProfileDisplay(targetProfile)));
+                            MessageBox.Show(
+                                this,
+                                Loc.Format("ImportSuccessMsg", targetSlot, Loc.ProfileDisplay(targetProfile)),
+                                Loc.Get("ImportSuccessTitle"),
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Information);
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show(
+                                this,
+                                ex.Message,
+                                Loc.Get("TitleError"),
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Error);
+                        }
+                    }
+                }
+            }
+        }
+
+        private static void ApplyDarkMenuRenderer(MenuStrip menu, DarkMenuRenderer renderer)
+        {
+            menu.Renderer = renderer;
+            menu.BackColor = Color.FromArgb(14, 22, 38);
+            menu.ForeColor = Color.FromArgb(235, 240, 248);
+
+            foreach (ToolStripItem item in menu.Items)
+            {
+                ApplyDarkMenuItem(item, renderer);
+            }
+        }
+
+        private static void ApplyDarkMenuItem(ToolStripItem item, DarkMenuRenderer renderer)
+        {
+            item.ForeColor = Color.FromArgb(235, 240, 248);
+
+            ToolStripMenuItem menuItem = item as ToolStripMenuItem;
+            if (menuItem != null)
+            {
+                menuItem.DropDown.Renderer = renderer;
+                menuItem.DropDown.BackColor = Color.FromArgb(20, 30, 50);
+                menuItem.DropDown.ForeColor = Color.FromArgb(235, 240, 248);
+
+                foreach (ToolStripItem subItem in menuItem.DropDownItems)
+                {
+                    ApplyDarkMenuItem(subItem, renderer);
+                }
+            }
+        }
+
+        private class DarkMenuColorTable : ProfessionalColorTable
+        {
+            public override Color MenuStripGradientBegin { get { return Color.FromArgb(14, 22, 38); } }
+            public override Color MenuStripGradientEnd { get { return Color.FromArgb(14, 22, 38); } }
+            public override Color ToolStripDropDownBackground { get { return Color.FromArgb(20, 30, 50); } }
+            public override Color ImageMarginGradientBegin { get { return Color.FromArgb(20, 30, 50); } }
+            public override Color ImageMarginGradientMiddle { get { return Color.FromArgb(20, 30, 50); } }
+            public override Color ImageMarginGradientEnd { get { return Color.FromArgb(20, 30, 50); } }
+            public override Color MenuItemSelected { get { return Color.FromArgb(37, 99, 235); } }
+            public override Color MenuItemSelectedGradientBegin { get { return Color.FromArgb(37, 99, 235); } }
+            public override Color MenuItemSelectedGradientEnd { get { return Color.FromArgb(37, 99, 235); } }
+            public override Color MenuItemPressedGradientBegin { get { return Color.FromArgb(28, 44, 72); } }
+            public override Color MenuItemPressedGradientMiddle { get { return Color.FromArgb(28, 44, 72); } }
+            public override Color MenuItemPressedGradientEnd { get { return Color.FromArgb(28, 44, 72); } }
+            public override Color MenuBorder { get { return Color.FromArgb(50, 75, 115); } }
+            public override Color MenuItemBorder { get { return Color.FromArgb(60, 95, 150); } }
+            public override Color SeparatorDark { get { return Color.FromArgb(50, 75, 115); } }
+            public override Color SeparatorLight { get { return Color.FromArgb(30, 45, 70); } }
+        }
+
+        private class DarkMenuRenderer : ToolStripProfessionalRenderer
+        {
+            public DarkMenuRenderer() : base(new DarkMenuColorTable())
+            {
+                this.RoundedEdges = false;
+            }
+
+            protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
+            {
+                if (e.Item.Enabled)
+                {
+                    if (e.Item.Selected || e.Item.Pressed)
+                        e.TextColor = Color.White;
+                    else
+                        e.TextColor = Color.FromArgb(235, 240, 248);
+                }
+                else
+                {
+                    e.TextColor = Color.FromArgb(140, 150, 165);
+                }
+
+                base.OnRenderItemText(e);
+            }
+
+            protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e)
+            {
+                if (e.Item is ToolStripSeparator)
+                {
+                    int y = e.Item.Height / 2;
+                    using (Pen pen = new Pen(Color.FromArgb(50, 75, 115)))
+                    {
+                        e.Graphics.DrawLine(pen, 28, y, e.Item.Width - 4, y);
+                    }
+                }
+                else
+                {
+                    base.OnRenderSeparator(e);
+                }
+            }
+
+            protected override void OnRenderArrow(ToolStripArrowRenderEventArgs e)
+            {
+                e.ArrowColor = e.Item.Enabled ? Color.FromArgb(235, 240, 248) : Color.FromArgb(140, 150, 165);
+                base.OnRenderArrow(e);
+            }
+        }
+
+        public class ImportPreviewForm : Form
+        {
+            private StfsSaveInfo m_info;
+            private string m_recompRoot;
+
+            private PictureBox m_pbThumb;
+            private Label m_lblHeaderTitle;
+            private Label m_lblHeaderSubtitle;
+
+            private GroupBox m_gbSaveInfo;
+            private GroupBox m_gbDest;
+            private Label m_lblTargetProfile;
+            private ComboBox m_cbTargetProfile;
+            private Label m_lblTargetUser;
+            private ComboBox m_cbTargetUser;
+            private Label m_lblTargetSlot;
+            private NumericUpDown m_numTargetSlot;
+            private Label m_lblConflictHint;
+
+            private Button m_btnImport;
+            private Button m_btnCancel;
+
+            public string SelectedProfile
+            {
+                get
+                {
+                    int idx = m_cbTargetProfile.SelectedIndex;
+                    if (idx < 0 || idx >= SaveManager.SupportedProfiles.Length) return SaveManager.DefaultProfile;
+                    return SaveManager.SupportedProfiles[idx];
+                }
+            }
+
+            public string SelectedUserId
+            {
+                get { return m_cbTargetUser.Text.Trim(); }
+            }
+
+            public int SelectedSlotNumber
+            {
+                get { return (int)m_numTargetSlot.Value; }
+            }
+
+            public ImportPreviewForm(StfsSaveInfo info, string recompRoot, string activeProfile)
+            {
+                m_info = info;
+                m_recompRoot = recompRoot;
+
+                InitializeDialog(activeProfile);
+            }
+
+            private void InitializeDialog(string activeProfile)
+            {
+                this.Text = Loc.Get("ImportTitle");
+                this.Size = new Size(580, 580);
+                this.MinimumSize = new Size(580, 580);
+                this.StartPosition = FormStartPosition.CenterParent;
+                this.FormBorderStyle = FormBorderStyle.FixedDialog;
+                this.MaximizeBox = false;
+                this.MinimizeBox = false;
+                this.ShowInTaskbar = false;
+                this.BackColor = Color.FromArgb(240, 244, 250);
+                this.Font = new Font("Segoe UI", 9F);
+
+                // 1. Header banner
+                Panel pnlHeader = new Panel();
+                pnlHeader.Dock = DockStyle.Top;
+                pnlHeader.Height = 72;
+                pnlHeader.BackColor = Color.FromArgb(16, 26, 46);
+                pnlHeader.Padding = new Padding(12, 6, 12, 6);
+
+                m_pbThumb = new PictureBox();
+                m_pbThumb.Location = new Point(12, 6);
+                m_pbThumb.Size = new Size(60, 60);
+                m_pbThumb.SizeMode = PictureBoxSizeMode.Zoom;
+                m_pbThumb.BorderStyle = BorderStyle.FixedSingle;
+                m_pbThumb.BackColor = Color.Black;
+
+                if (m_info.ThumbnailPng != null && m_info.ThumbnailPng.Length > 0)
+                {
+                    try
+                    {
+                        using (MemoryStream ms = new MemoryStream(m_info.ThumbnailPng))
+                        using (Image temp = Image.FromStream(ms))
+                        {
+                            m_pbThumb.Image = new Bitmap(temp);
+                        }
+                    }
+                    catch { }
+                }
+
+                m_lblHeaderTitle = new Label();
+                m_lblHeaderTitle.Text = Loc.Get("ImportPreviewHeader");
+                m_lblHeaderTitle.Font = new Font("Segoe UI", 12F, FontStyle.Bold);
+                m_lblHeaderTitle.ForeColor = Color.White;
+                m_lblHeaderTitle.Location = new Point(82, 10);
+                m_lblHeaderTitle.Size = new Size(460, 26);
+
+                m_lblHeaderSubtitle = new Label();
+                m_lblHeaderSubtitle.Text = Path.GetFileName(m_info.FilePath) + " (" + (m_info.Magic ?? "").Trim() + ")";
+                m_lblHeaderSubtitle.Font = new Font("Segoe UI", 9F);
+                m_lblHeaderSubtitle.ForeColor = Color.FromArgb(170, 200, 245);
+                m_lblHeaderSubtitle.Location = new Point(83, 38);
+                m_lblHeaderSubtitle.Size = new Size(460, 22);
+
+                pnlHeader.Controls.Add(m_pbThumb);
+                pnlHeader.Controls.Add(m_lblHeaderTitle);
+                pnlHeader.Controls.Add(m_lblHeaderSubtitle);
+
+                // 2. Save Info GroupBox
+                m_gbSaveInfo = new GroupBox();
+                m_gbSaveInfo.Location = new Point(16, 84);
+                m_gbSaveInfo.Size = new Size(532, 185);
+                m_gbSaveInfo.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+                m_gbSaveInfo.ForeColor = Color.FromArgb(25, 45, 80);
+                m_gbSaveInfo.Text = Loc.Get("ImportGbDetails");
+
+                int y = 26;
+                int labelX = 20;
+                int valX = 170;
+                int rowH = 26;
+
+                AddInfoRow(m_gbSaveInfo, Loc.Get("ImportOrigSlot"), string.Format(Loc.Get("ImportSlotFormat"), m_info.OriginalSlot), labelX, valX, y);
+                y += rowH;
+
+                AddInfoRow(m_gbSaveInfo, Loc.Get("ImportFol"), string.Format(Loc.Get("ImportFolFormat"), m_info.Fol), labelX, valX, y);
+                y += rowH;
+
+                string capellText = (m_info.CapellLevel > 0)
+                    ? string.Format(Loc.Get("ImportCapellLvlFormat"), m_info.CapellLevel)
+                    : (m_info.Payload != null && m_info.Payload.GetCharacter(0).InParty ? string.Format(Loc.Get("ImportCapellLvlFormat"), 1) : "---");
+                AddInfoRow(m_gbSaveInfo, Loc.Get("ImportCapellLevel"), capellText, labelX, valX, y);
+                y += rowH;
+
+                AddInfoRow(m_gbSaveInfo, Loc.Get("ImportTitleId"), string.Format(Loc.Get("ImportTitleIdVal"), m_info.TitleId), labelX, valX, y);
+                y += rowH;
+
+                string crcText = (m_info.Crc1Valid && m_info.Crc2Valid) ? Loc.Get("ImportCrcValid") : Loc.Get("ImportCrcInvalid");
+                AddInfoRow(m_gbSaveInfo, Loc.Get("ImportCrcStatus"), crcText, labelX, valX, y);
+
+                // 3. Destination GroupBox
+                m_gbDest = new GroupBox();
+                m_gbDest.Location = new Point(16, 280);
+                m_gbDest.Size = new Size(532, 185);
+                m_gbDest.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+                m_gbDest.ForeColor = Color.FromArgb(25, 45, 80);
+                m_gbDest.Text = Loc.Get("ImportGbDestination");
+
+                m_lblTargetProfile = new Label();
+                m_lblTargetProfile.Text = Loc.Get("ImportTargetProfile");
+                m_lblTargetProfile.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
+                m_lblTargetProfile.ForeColor = Color.FromArgb(40, 50, 65);
+                m_lblTargetProfile.Location = new Point(20, 30);
+                m_lblTargetProfile.Size = new Size(140, 24);
+
+                m_cbTargetProfile = new ComboBox();
+                m_cbTargetProfile.DropDownStyle = ComboBoxStyle.DropDownList;
+                m_cbTargetProfile.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                m_cbTargetProfile.Location = new Point(170, 27);
+                m_cbTargetProfile.Size = new Size(240, 24);
+
+                List<string> installed = SaveManager.GetAvailableProfiles(m_recompRoot);
+                foreach (string code in SaveManager.SupportedProfiles)
+                {
+                    bool isInstalled = false;
+                    foreach (string a in installed)
+                    {
+                        if (string.Equals(a, code, StringComparison.OrdinalIgnoreCase)) { isInstalled = true; break; }
+                    }
+                    m_cbTargetProfile.Items.Add(isInstalled ? Loc.ProfileDisplay(code) : Loc.ProfileDisplay(code) + " " + Loc.Get("ProfileNotInstalled"));
+                }
+                int activeIdx = Array.IndexOf(SaveManager.SupportedProfiles, SaveManager.NormalizeProfile(activeProfile) ?? SaveManager.DefaultProfile);
+                m_cbTargetProfile.SelectedIndex = activeIdx >= 0 ? activeIdx : 0;
+                m_cbTargetProfile.SelectedIndexChanged += (s, e) => {
+                    PopulateUserIds();
+                    UpdateConflictHint();
+                };
+
+                m_lblTargetUser = new Label();
+                m_lblTargetUser.Text = Loc.Get("ImportTargetUser");
+                m_lblTargetUser.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
+                m_lblTargetUser.ForeColor = Color.FromArgb(40, 50, 65);
+                m_lblTargetUser.Location = new Point(20, 66);
+                m_lblTargetUser.Size = new Size(140, 24);
+
+                m_cbTargetUser = new ComboBox();
+                m_cbTargetUser.Font = new Font("Segoe UI", 9F);
+                m_cbTargetUser.Location = new Point(170, 63);
+                m_cbTargetUser.Size = new Size(240, 24);
+                m_cbTargetUser.TextChanged += (s, e) => UpdateConflictHint();
+
+                m_lblTargetSlot = new Label();
+                m_lblTargetSlot.Text = Loc.Get("ImportTargetSlot");
+                m_lblTargetSlot.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
+                m_lblTargetSlot.ForeColor = Color.FromArgb(40, 50, 65);
+                m_lblTargetSlot.Location = new Point(20, 102);
+                m_lblTargetSlot.Size = new Size(140, 24);
+
+                m_numTargetSlot = new NumericUpDown();
+                m_numTargetSlot.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                m_numTargetSlot.Location = new Point(170, 99);
+                m_numTargetSlot.Size = new Size(80, 24);
+                m_numTargetSlot.Minimum = 1;
+                m_numTargetSlot.Maximum = 99;
+                m_numTargetSlot.Value = Math.Max(1, Math.Min(99, (int)m_info.OriginalSlot));
+                m_numTargetSlot.ValueChanged += (s, e) => UpdateConflictHint();
+
+                m_lblConflictHint = new Label();
+                m_lblConflictHint.Location = new Point(20, 138);
+                m_lblConflictHint.Size = new Size(490, 36);
+                m_lblConflictHint.Font = new Font("Segoe UI", 9F, FontStyle.Italic);
+
+                m_gbDest.Controls.Add(m_lblTargetProfile);
+                m_gbDest.Controls.Add(m_cbTargetProfile);
+                m_gbDest.Controls.Add(m_lblTargetUser);
+                m_gbDest.Controls.Add(m_cbTargetUser);
+                m_gbDest.Controls.Add(m_lblTargetSlot);
+                m_gbDest.Controls.Add(m_numTargetSlot);
+                m_gbDest.Controls.Add(m_lblConflictHint);
+
+                // 4. Buttons
+                m_btnImport = new Button();
+                m_btnImport.Text = Loc.Get("ImportBtnAction");
+                m_btnImport.DialogResult = DialogResult.OK;
+                m_btnImport.Font = new Font("Segoe UI", 9.5F, FontStyle.Bold);
+                m_btnImport.BackColor = Color.FromArgb(34, 150, 70);
+                m_btnImport.ForeColor = Color.White;
+                m_btnImport.FlatStyle = FlatStyle.Flat;
+                m_btnImport.Location = new Point(270, 480);
+                m_btnImport.Size = new Size(160, 38);
+
+                m_btnCancel = new Button();
+                m_btnCancel.Text = Loc.Get("ImportBtnCancel");
+                m_btnCancel.DialogResult = DialogResult.Cancel;
+                m_btnCancel.Font = new Font("Segoe UI", 9F);
+                m_btnCancel.Location = new Point(440, 480);
+                m_btnCancel.Size = new Size(108, 38);
+
+                this.AcceptButton = m_btnImport;
+                this.CancelButton = m_btnCancel;
+
+                this.Controls.Add(pnlHeader);
+                this.Controls.Add(m_gbSaveInfo);
+                this.Controls.Add(m_gbDest);
+                this.Controls.Add(m_btnImport);
+                this.Controls.Add(m_btnCancel);
+
+                PopulateUserIds();
+                UpdateConflictHint();
+            }
+
+            private void AddInfoRow(GroupBox gb, string title, string val, int x1, int x2, int y)
+            {
+                Label lblKey = new Label();
+                lblKey.Text = title;
+                lblKey.Location = new Point(x1, y);
+                lblKey.Size = new Size(140, 22);
+                lblKey.Font = new Font("Segoe UI", 9F, FontStyle.Regular);
+                lblKey.ForeColor = Color.FromArgb(80, 90, 105);
+
+                Label lblVal = new Label();
+                lblVal.Text = val;
+                lblVal.Location = new Point(x2, y);
+                lblVal.Size = new Size(340, 22);
+                lblVal.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+                lblVal.ForeColor = Color.FromArgb(20, 30, 45);
+
+                gb.Controls.Add(lblKey);
+                gb.Controls.Add(lblVal);
+            }
+
+            private void PopulateUserIds()
+            {
+                m_cbTargetUser.Items.Clear();
+                var users = SaveManager.GetAvailableUserIds(m_recompRoot, SelectedProfile);
+                foreach (var u in users) m_cbTargetUser.Items.Add(u);
+                if (m_cbTargetUser.Items.Count > 0) m_cbTargetUser.SelectedIndex = 0;
+                else m_cbTargetUser.Text = "0000000100000001";
+            }
+
+            private void UpdateConflictHint()
+            {
+                bool exists = SaveManager.SlotExists(m_recompRoot, SelectedProfile, SelectedUserId, SelectedSlotNumber);
+                if (exists)
+                {
+                    m_lblConflictHint.Text = Loc.Format("ImportSlotConflictHint", SelectedSlotNumber);
+                    m_lblConflictHint.ForeColor = Color.FromArgb(210, 90, 0);
+                }
+                else
+                {
+                    m_lblConflictHint.Text = Loc.Format("ImportSlotAvailableHint", SelectedSlotNumber);
+                    m_lblConflictHint.ForeColor = Color.FromArgb(20, 140, 50);
+                }
+            }
         }
         #endregion
     }

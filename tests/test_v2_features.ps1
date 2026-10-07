@@ -1,7 +1,7 @@
 $ErrorActionPreference = "Stop"
 
 Write-Host "================================================="
-Write-Host "  IU Save Bridge v2.2 - Extended Feature Tests"
+Write-Host "  IU Save Bridge v2.3 - Extended Feature Tests"
 Write-Host "================================================="
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -9,7 +9,13 @@ $repoRoot = Split-Path -Parent $scriptDir
 $workDir = Join-Path $scriptDir "work"
 if (! (Test-Path $workDir)) { New-Item -ItemType Directory -Force -Path $workDir | Out-Null }
 
-$fixtureDat = Join-Path $scriptDir "fixtures\MockRecomp\NTSC-U\saves\1234567890ABCDEF\535107DB\00000001\InfiniteUndiscovery_0001.bin\InfiniteUndiscovery.dat"
+$fixtureDat = Join-Path $scriptDir "fixtures\MockRecomp\USA\saves\1234567890ABCDEF\535107DB\00000001\InfiniteUndiscovery_0001.bin\InfiniteUndiscovery.dat"
+if (!(Test-Path $fixtureDat)) {
+    $fixtureDat = Join-Path $workDir "MockRecomp\USA\saves\1234567890ABCDEF\535107DB\00000001\InfiniteUndiscovery_0001.bin\InfiniteUndiscovery.dat"
+}
+if (!(Test-Path $fixtureDat)) {
+    throw "Fixture not found. Run tests\run_tests.ps1 first to generate tests\work\MockRecomp."
+}
 $slot2Copy = Join-Path $workDir "Slot2_Copy.dat"
 Copy-Item $fixtureDat $slot2Copy -Force
 
@@ -28,6 +34,7 @@ $csc = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
   "$repoRoot\src\CharacterData.cs" `
   "$repoRoot\src\ItemData.cs" `
   "$repoRoot\src\SaveManager.cs" `
+  "$repoRoot\src\StfsReader.cs" `
   "$repoRoot\src\Loc.cs" `
   "$repoRoot\src\MainForm.cs" `
   "$repoRoot\src\Program.cs" | Out-Null

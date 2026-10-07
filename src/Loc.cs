@@ -69,6 +69,18 @@ namespace IUSaveBridge
             }
         }
 
+        /// <summary>Localized, human-friendly display name for a canonical profile code.</summary>
+        public static string ProfileDisplay(string profileCode)
+        {
+            string code = SaveManager.NormalizeProfile(profileCode);
+            if (string.Equals(code, SaveManager.ProfileUsa, StringComparison.OrdinalIgnoreCase)) return Get("ProfileUsa");
+            if (string.Equals(code, SaveManager.ProfileUsaUndub, StringComparison.OrdinalIgnoreCase)) return Get("ProfileUsaUndub");
+            if (string.Equals(code, SaveManager.ProfileEurope, StringComparison.OrdinalIgnoreCase)) return Get("ProfileEurope");
+            if (string.Equals(code, SaveManager.ProfileJapan, StringComparison.OrdinalIgnoreCase)) return Get("ProfileJapan");
+            if (string.Equals(code, SaveManager.ProfileAsia, StringComparison.OrdinalIgnoreCase)) return Get("ProfileAsia");
+            return profileCode ?? "";
+        }
+
         public static IEnumerable<string> GetAllKeys()
         {
             return s_stringsEn.Keys;
@@ -86,9 +98,15 @@ namespace IUSaveBridge
 
             // Application Header & Identity
             d["AppTitle"] = "Infinite Undiscovery Recomp Save Editor";
-            d["AppSubtitle"] = "IU Save Bridge v2.2.0 • Official Save Companion";
+            d["AppSubtitle"] = "IU Save Bridge v2.3.0 • Official Save Companion";
             d["LangLabel"] = "Language:";
-            d["RegionLabel"] = "Region:";
+            d["ProfileLabel"] = "Profile:";
+            d["ProfileNotInstalled"] = "(not installed)";
+            d["ProfileUsa"] = "USA";
+            d["ProfileUsaUndub"] = "USA UNDUB (Japanese Voices)";
+            d["ProfileEurope"] = "Europe";
+            d["ProfileJapan"] = "Japan";
+            d["ProfileAsia"] = "Asia (English)";
             d["BadgeNoSave"] = "No Save Loaded";
             d["BadgeActiveSave"] = "Active Save: {0} / Slot {1}";
 
@@ -163,7 +181,8 @@ namespace IUSaveBridge
             // Tab 4: Backups
             d["GbBackups"] = "Automated & Safety Backups";
             d["ColBkpFile"] = "Backup File";
-            d["ColBkpRegion"] = "Region";
+            d["ColBkpProfile"] = "Profile";
+            d["BackupLegacySuffix"] = " (legacy)";
             d["ColBkpSlot"] = "Slot";
             d["ColBkpDate"] = "Date & Time";
             d["ColBkpSize"] = "Size";
@@ -180,19 +199,19 @@ namespace IUSaveBridge
             d["BtnChangeLocation"] = "Change Game Location";
             d["BtnOpenSaveDir"] = "Open Saves Directory";
             d["GbPreferences"] = "Application Preferences";
-            d["LblPreferredRegion"] = "Active Save Region:";
+            d["LblPreferredProfile"] = "Active Save Profile:";
             d["LblPreferredLanguage"] = "Interface Language:";
             d["GbAbout"] = "About & Credits";
             d["AboutAppName"] = "Infinite Undiscovery Recomp Save Editor";
-            d["AboutSubtitle"] = "IU Save Bridge v2.2.0 • Official Save Companion";
+            d["AboutSubtitle"] = "IU Save Bridge v2.3.0 • Official Save Companion";
             d["AboutProject"] = "Recomp Project: https://github.com/doc-haz/infinite-undiscovery-recomp";
             d["AboutDesc"] = "Direct, safe save editor companion for Infinite Undiscovery Recomp.\nDesigned specifically for portable ReXGlue saves with automatic backups, high-integrity Tri-Ace CRC32 recalculation, and zero registry footprint.";
 
             // Log & Operation messages
             d["LogHeader"] = "Operation Log:";
-            d["LogInitialized"] = "IU Save Bridge v2.2.0 initialized. Ready.";
+            d["LogInitialized"] = "IU Save Bridge v2.3.0 initialized. Ready.";
             d["LogRecompDetected"] = "Recomp location set to: {0}";
-            d["LogScanCompleted"] = "Scan completed. Found {0} save slot(s) for region {1}.";
+            d["LogScanCompleted"] = "Scan completed. Found {0} save slot(s) for profile {1}.";
             d["LogSaveLoaded"] = "Opened save {0} (Fol: {1:N0}, SHA256: {2}).";
             d["LogSaveSaved"] = "Save written and verified successfully! Auto-backup created: {0}.";
             d["LogAutoBackupCreated"] = "Automatic backup created: {0}";
@@ -203,7 +222,7 @@ namespace IUSaveBridge
             d["LogInventorySaved"] = "Inventory changes updated.";
             d["LogAllItems99"] = "All 1,023 items set to quantity 99.";
             d["LogOwnedItems99"] = "Owned items set to quantity 99.";
-            d["LogRegionChanged"] = "Active region changed to: {0}.";
+            d["LogProfileChanged"] = "Active profile changed to: {0}.";
             d["MsgSaveSuccess"] = "Save changes written and verified successfully!\n\nAutomatic backup created:\n{0}";
             d["MsgBackupCreated"] = "Backup created successfully:\n{0}";
             d["MsgNoRecompFound"] = "Could not locate Infinite Undiscovery Recomp automatically.\nPlease select the folder where InfiniteUndiscoveryRecomp.exe is located.";
@@ -225,6 +244,51 @@ namespace IUSaveBridge
             d["TitleInventorySaved"] = "Inventory Updated";
             d["FileFilterDat"] = "Infinite Undiscovery Save (*.dat)|*.dat|All Files (*.*)|*.*";
             d["FileFilterBin"] = "Infinite Undiscovery Save (*.bin;*.dat)|*.bin;*.dat|All Files (*.*)|*.*";
+
+            // Menu & Import Xbox 360 Save
+            d["MenuFile"] = "File";
+            d["MenuFileImportXbox"] = "Import Xbox 360 Save...";
+            d["MenuFileOpenSaveFolder"] = "Open Saves Directory";
+            d["MenuFileExit"] = "Exit";
+            d["MenuHelp"] = "Help";
+            d["MenuHelpAbout"] = "About...";
+            d["BtnImportXboxSave"] = "Import Xbox 360 Save...";
+            d["ImportTitle"] = "Import Xbox 360 Save";
+            d["ImportPreviewHeader"] = "Xbox 360 Save Detected";
+            d["ImportSourceFile"] = "Source File:";
+            d["ImportContainerType"] = "Container:";
+            d["ImportTitleId"] = "Title ID:";
+            d["ImportOrigSlot"] = "Original Slot:";
+            d["ImportFol"] = "Fol:";
+            d["ImportCapellLevel"] = "Capell Level:";
+            d["ImportCrcStatus"] = "CRC Status:";
+            d["ImportTargetProfile"] = "Target Profile:";
+            d["ImportTargetUser"] = "Target User ID:";
+            d["ImportTargetSlot"] = "Destination Slot:";
+            d["ImportBtnAction"] = "Import Save";
+            d["ImportBtnCancel"] = "Cancel";
+            d["ImportConflictTitle"] = "Slot Already Exists";
+            d["ImportConflictMsg"] = "Slot {0} already exists in {1} ({2}).\r\n\r\nDo you want to replace this slot? An automatic backup will be created before overwriting.";
+            d["ImportConflictReplace"] = "Replace Existing Slot";
+            d["ImportConflictChooseOther"] = "Choose Another Slot";
+            d["ImportSuccessTitle"] = "Import Complete";
+            d["ImportSuccessMsg"] = "Xbox 360 save imported successfully into Slot {0} ({1})!";
+            d["ImportErrNotStfs"] = "The selected file is not a valid Xbox 360 STFS/CON container.";
+            d["ImportErrTitleMismatch"] = "The container Title ID (0x{0:X8}) does not match Infinite Undiscovery (0x{1:X8}).";
+            d["ImportErrNoPayload"] = "The file 'InfiniteUndiscovery.dat' was not found inside the Xbox 360 container.";
+            d["ImportErrInvalidPayload"] = "Extracted save payload is invalid or corrupted.";
+            d["ImportErrNoRecomp"] = "Infinite Undiscovery Recomp directory has not been configured.\nPlease set the game directory in Settings first.";
+            d["FileFilterXboxSave"] = "Xbox 360 Save Files (*.bin;*.con;*.live;*.pirs;*.*)|*.bin;*.con;*.live;*.pirs;*.*|All Files (*.*)|*.*";
+            d["ImportGbDetails"] = "Xbox 360 Save Details";
+            d["ImportGbDestination"] = "Destination Settings (Recomp)";
+            d["ImportCrcValid"] = "Valid (Match)";
+            d["ImportCrcInvalid"] = "Error / Mismatch";
+            d["ImportTitleIdVal"] = "0x{0:X8} (Infinite Undiscovery)";
+            d["ImportSlotFormat"] = "Slot {0}";
+            d["ImportFolFormat"] = "{0:N0} Fol";
+            d["ImportCapellLvlFormat"] = "Lv. {0}";
+            d["ImportSlotConflictHint"] = "[!] Slot {0} already exists in target destination.\r\nImporting will prompt to replace (with backup) or pick another slot.";
+            d["ImportSlotAvailableHint"] = "[OK] Slot {0} is available for import.";
         }
 
         private static void InitializeSpanish()
@@ -233,9 +297,15 @@ namespace IUSaveBridge
 
             // Application Header & Identity
             d["AppTitle"] = "Infinite Undiscovery Recomp Save Editor";
-            d["AppSubtitle"] = "IU Save Bridge v2.2.0 • Companion Oficial de Saves";
+            d["AppSubtitle"] = "IU Save Bridge v2.3.0 • Companion Oficial de Saves";
             d["LangLabel"] = "Idioma:";
-            d["RegionLabel"] = "Región:";
+            d["ProfileLabel"] = "Perfil:";
+            d["ProfileNotInstalled"] = "(no instalado)";
+            d["ProfileUsa"] = "USA";
+            d["ProfileUsaUndub"] = "USA UNDUB (Voces japonesas)";
+            d["ProfileEurope"] = "Europa";
+            d["ProfileJapan"] = "Japón";
+            d["ProfileAsia"] = "Asia (Inglés)";
             d["BadgeNoSave"] = "Ningún save cargado";
             d["BadgeActiveSave"] = "Save activo: {0} / Ranura {1}";
 
@@ -310,7 +380,8 @@ namespace IUSaveBridge
             // Tab 4: Backups
             d["GbBackups"] = "Copias de seguridad automáticas";
             d["ColBkpFile"] = "Archivo de backup";
-            d["ColBkpRegion"] = "Región";
+            d["ColBkpProfile"] = "Perfil";
+            d["BackupLegacySuffix"] = " (heredado)";
             d["ColBkpSlot"] = "Ranura";
             d["ColBkpDate"] = "Fecha y hora";
             d["ColBkpSize"] = "Tamaño";
@@ -327,19 +398,19 @@ namespace IUSaveBridge
             d["BtnChangeLocation"] = "Cambiar ubicación del juego";
             d["BtnOpenSaveDir"] = "Abrir directorio de saves";
             d["GbPreferences"] = "Preferencias de la aplicación";
-            d["LblPreferredRegion"] = "Región de guardado activa:";
+            d["LblPreferredProfile"] = "Perfil de guardado activo:";
             d["LblPreferredLanguage"] = "Idioma de la interfaz:";
             d["GbAbout"] = "Acerca de y créditos";
             d["AboutAppName"] = "Infinite Undiscovery Recomp Save Editor";
-            d["AboutSubtitle"] = "IU Save Bridge v2.2.0 • Companion Oficial de Saves";
+            d["AboutSubtitle"] = "IU Save Bridge v2.3.0 • Companion Oficial de Saves";
             d["AboutProject"] = "Proyecto Recomp: https://github.com/doc-haz/infinite-undiscovery-recomp";
             d["AboutDesc"] = "Editor de partidas directo y seguro para Infinite Undiscovery Recomp.\nDiseñado específicamente para saves portables ReXGlue con backups automáticos, recálculo de CRC32 Tri-Ace de alta integridad y cero uso de registro.";
 
             // Log & Operation messages
             d["LogHeader"] = "Registro de operaciones:";
-            d["LogInitialized"] = "IU Save Bridge v2.2.0 iniciado. Listo.";
+            d["LogInitialized"] = "IU Save Bridge v2.3.0 iniciado. Listo.";
             d["LogRecompDetected"] = "Ubicación de Recomp establecida en: {0}";
-            d["LogScanCompleted"] = "Escaneo completado. Se encontraron {0} ranura(s) para la región {1}.";
+            d["LogScanCompleted"] = "Escaneo completado. Se encontraron {0} ranura(s) para el perfil {1}.";
             d["LogSaveLoaded"] = "Abierto save {0} (Fol: {1:N0}, SHA256: {2}).";
             d["LogSaveSaved"] = "¡Save guardado y verificado con éxito! Backup automático creado: {0}.";
             d["LogAutoBackupCreated"] = "Backup automático creado: {0}";
@@ -350,7 +421,7 @@ namespace IUSaveBridge
             d["LogInventorySaved"] = "Cambios de inventario actualizados.";
             d["LogAllItems99"] = "Todos los 1.023 items puestos a cantidad 99.";
             d["LogOwnedItems99"] = "Items en posesión puestos a cantidad 99.";
-            d["LogRegionChanged"] = "Región activa cambiada a: {0}.";
+            d["LogProfileChanged"] = "Perfil activo cambiado a: {0}.";
             d["MsgSaveSuccess"] = "¡Cambios guardados y verificados con éxito!\n\nBackup automático creado:\n{0}";
             d["MsgBackupCreated"] = "Copia de seguridad creada con éxito:\n{0}";
             d["MsgNoRecompFound"] = "No se pudo localizar Infinite Undiscovery Recomp automáticamente.\nPor favor, selecciona la carpeta donde está InfiniteUndiscoveryRecomp.exe.";
@@ -372,6 +443,51 @@ namespace IUSaveBridge
             d["TitleInventorySaved"] = "Inventario actualizado";
             d["FileFilterDat"] = "Partida Infinite Undiscovery (*.dat)|*.dat|Todos los archivos (*.*)|*.*";
             d["FileFilterBin"] = "Partida Infinite Undiscovery (*.bin;*.dat)|*.bin;*.dat|Todos los archivos (*.*)|*.*";
+
+            // Menú e Importación de Save Xbox 360
+            d["MenuFile"] = "Archivo";
+            d["MenuFileImportXbox"] = "Importar save de Xbox 360...";
+            d["MenuFileOpenSaveFolder"] = "Abrir carpeta de saves";
+            d["MenuFileExit"] = "Salir";
+            d["MenuHelp"] = "Ayuda";
+            d["MenuHelpAbout"] = "Acerca de...";
+            d["BtnImportXboxSave"] = "Importar save de Xbox 360...";
+            d["ImportTitle"] = "Importar Save de Xbox 360";
+            d["ImportPreviewHeader"] = "Save de Xbox 360 Detectado";
+            d["ImportSourceFile"] = "Archivo origen:";
+            d["ImportContainerType"] = "Contenedor:";
+            d["ImportTitleId"] = "Title ID:";
+            d["ImportOrigSlot"] = "Slot original:";
+            d["ImportFol"] = "Fol:";
+            d["ImportCapellLevel"] = "Nivel de Capell:";
+            d["ImportCrcStatus"] = "Estado CRC:";
+            d["ImportTargetProfile"] = "Perfil de destino:";
+            d["ImportTargetUser"] = "ID de usuario destino:";
+            d["ImportTargetSlot"] = "Slot de destino:";
+            d["ImportBtnAction"] = "Importar save";
+            d["ImportBtnCancel"] = "Cancelar";
+            d["ImportConflictTitle"] = "Conflicto de Slot Detectado";
+            d["ImportConflictMsg"] = "El Slot {0} ya existe en {1} ({2}).\r\n\r\n¿Deseas reemplazar este slot existente? (Se creará una copia de seguridad automática primero).";
+            d["ImportConflictReplace"] = "Reemplazar slot existente";
+            d["ImportConflictChooseOther"] = "Elegir otro slot";
+            d["ImportSuccessTitle"] = "Importación Completada";
+            d["ImportSuccessMsg"] = "¡El save de Xbox 360 se convirtió e importó correctamente al Slot {0} ({1})!";
+            d["ImportErrNotStfs"] = "El archivo seleccionado no es un contenedor STFS/CON válido de Xbox 360.";
+            d["ImportErrTitleMismatch"] = "El Title ID del contenedor (0x{0:X8}) no coincide con Infinite Undiscovery (0x{1:X8}).";
+            d["ImportErrNoPayload"] = "No se encontró el archivo 'InfiniteUndiscovery.dat' dentro del contenedor de Xbox 360.";
+            d["ImportErrInvalidPayload"] = "El payload del save extraído no es válido o está dañado.";
+            d["ImportErrNoRecomp"] = "La carpeta de Infinite Undiscovery Recomp no está configurada.\nPor favor, establece la ruta del juego en Ajustes primero.";
+            d["FileFilterXboxSave"] = "Saves de Xbox 360 (*.bin;*.con;*.live;*.pirs;*.*)|*.bin;*.con;*.live;*.pirs;*.*|Todos los archivos (*.*)|*.*";
+            d["ImportGbDetails"] = "Detalles del Save de Xbox 360";
+            d["ImportGbDestination"] = "Configuración de Destino (Recomp)";
+            d["ImportCrcValid"] = "Válido (Coincide)";
+            d["ImportCrcInvalid"] = "Error / No coincide";
+            d["ImportTitleIdVal"] = "0x{0:X8} (Infinite Undiscovery)";
+            d["ImportSlotFormat"] = "Ranura {0}";
+            d["ImportFolFormat"] = "{0:N0} Fol";
+            d["ImportCapellLvlFormat"] = "Nv. {0}";
+            d["ImportSlotConflictHint"] = "[!] La ranura {0} ya existe en el destino.\r\nAl importar se pedirá reemplazar (con backup) o elegir otra ranura.";
+            d["ImportSlotAvailableHint"] = "[OK] La ranura {0} está disponible para importar.";
         }
     }
 }

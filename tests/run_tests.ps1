@@ -1,44 +1,58 @@
 $ErrorActionPreference = "Stop"
 
 Write-Host "================================================="
-Write-Host "  IU Save Bridge v2.2.0 - Automated Test Suite"
+Write-Host "  IU Save Bridge v2.3.0 - Automated Test Suite"
+Write-Host "  (profile model v1.0.0-rc1 + legacy NTSC-U/PAL)"
 Write-Host "================================================="
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $repoRoot = Split-Path -Parent $scriptDir
 $testDir = Join-Path $scriptDir "work"
-if (! (Test-Path $testDir)) { New-Item -ItemType Directory -Force -Path $testDir | Out-Null }
 
-# Compile IU_Save_Bridge.exe into work directory
-$bridgeExe = Join-Path $testDir "IU_Save_Bridge.exe"
+# Always regenerate a clean work folder so fixture mutations never leak between runs.
+if (Test-Path $testDir) { Remove-Item $testDir -Recurse -Force }
+New-Item -ItemType Directory -Force -Path $testDir | Out-Null
+
 $csc = "C:\Windows\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+
+$sources = @(
+    "$repoRoot\src\AssemblyInfo.cs",
+    "$repoRoot\src\SafePath.cs",
+    "$repoRoot\src\SavePayload.cs",
+    "$repoRoot\src\CharacterData.cs",
+    "$repoRoot\src\ItemData.cs",
+    "$repoRoot\src\SaveManager.cs",
+    "$repoRoot\src\StfsReader.cs",
+    "$repoRoot\src\Loc.cs",
+    "$repoRoot\src\MainForm.cs",
+    "$repoRoot\src\Program.cs"
+)
+
+# Compile IU_Save_Bridge.exe into the work directory
+$bridgeExe = Join-Path $testDir "IU_Save_Bridge.exe"
 Write-Host "Compiling test binary from source..."
-& $csc /target:winexe /platform:x64 /optimize+ `
+& $csc /nologo /target:winexe /platform:x64 /optimize+ `
   /win32icon:"$repoRoot\assets\IU_Recomp_Save_Editor.ico" `
   /resource:"$repoRoot\assets\IU_Recomp_Save_Editor.ico,IU_Recomp_Save_Editor.ico" `
   /resource:"$repoRoot\assets\IU_Recomp_Save_Editor_Menu.png,IU_Recomp_Save_Editor_Menu.png" `
   /resource:"$repoRoot\resources\ItemNames.txt,ItemNames.txt" `
   /out:$bridgeExe `
-  "$repoRoot\src\AssemblyInfo.cs" `
-  "$repoRoot\src\SafePath.cs" `
-  "$repoRoot\src\SavePayload.cs" `
-  "$repoRoot\src\CharacterData.cs" `
-  "$repoRoot\src\ItemData.cs" `
-  "$repoRoot\src\SaveManager.cs" `
-  "$repoRoot\src\Loc.cs" `
-  "$repoRoot\src\MainForm.cs" `
-  "$repoRoot\src\Program.cs" | Out-Null
+  $sources | Out-Null
 
 if ($LASTEXITCODE -ne 0) { throw "Compilation of IU_Save_Bridge failed!" }
 Write-Host "[PASS] Test binary compiled successfully."
 
-# Dynamically generate synthetic MockRecomp test environment
+# ------------------------------------------------------------------
+# Synthesize the synthetic Recomp environments (profiles + legacy + mixed)
+# ------------------------------------------------------------------
 $fixtureRecomp = Join-Path $testDir "MockRecomp"
-if (! (Test-Path (Join-Path $fixtureRecomp "setup.json"))) {
-    Write-Host "Synthesizing dynamic MockRecomp test environment in work folder..."
-    $genCs = Join-Path $testDir "GenFixtures.cs"
-    $genExe = Join-Path $testDir "GenFixtures.exe"
-    $genSrc = @"
+$fixtureLegacy = Join-Path $testDir "MockLegacyRecomp"
+$fixtureMixed  = Join-Path $testDir "MockMixedRecomp"
+
+Write-Host "Synthesizing synthetic MockRecomp environments in work folder..."
+$genCs = Join-Path $testDir "GenFixtures.cs"
+$genExe = Join-Path $testDir "GenFixtures.exe"
+$genSrc = @'
 using System;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -116,51 +130,79 @@ class Generator {
         }
     }
 
+    static void NewRecomp(string root) {
+        Directory.CreateDirectory(root);
+        File.WriteAllText(Path.Combine(root, "InfiniteUndiscoveryRecomp.exe"), "");
+        File.WriteAllText(Path.Combine(root, "setup.json"), "{\r\n  \"language\": \"en\",\r\n  \"portable\": true\r\n}\r\n");
+    }
+
+    static void WriteSlot(string recomp, string folder, string user, int slot, uint fol, int capell, int aya, bool thumb) {
+        string dir = Path.Combine(recomp, folder, "saves", user, "535107DB", "00000001",
+            string.Format("InfiniteUndiscovery_{0:D4}.bin", slot));
+        Directory.CreateDirectory(dir);
+        File.WriteAllBytes(Path.Combine(dir, "InfiniteUndiscovery.dat"), MakeSave(fol, capell, aya));
+        if (thumb) MakeThumb(Path.Combine(dir, "__thumbnail.png"));
+    }
+
+    static void WriteAchievementsDecoy(string recomp, string folder, int slot, uint fol) {
+        string dir = Path.Combine(recomp, folder, "saves", "achievements", "535107DB", "00000001",
+            string.Format("InfiniteUndiscovery_{0:D4}.bin", slot));
+        Directory.CreateDirectory(dir);
+        File.WriteAllBytes(Path.Combine(dir, "InfiniteUndiscovery.dat"), MakeSave(fol, 1, 1));
+    }
+
     static void Main(string[] args) {
-        string target = args[0];
-        Directory.CreateDirectory(target);
+        string user = "1234567890ABCDEF";
 
-        File.WriteAllText(Path.Combine(target, "InfiniteUndiscoveryRecomp.exe"), "");
-        File.WriteAllText(Path.Combine(target, "setup.json"), "{\r\n  \"language\": \"en\",\r\n  \"portable\": true\r\n}\r\n");
-
-        string dlcDir = Path.Combine(target, @"NTSC-U\saves\0000000000000000\535107DB\00000002\mock_dlc.bin");
+        // 1) Full profile set + DLC decoy
+        string main = args[0];
+        NewRecomp(main);
+        string dlcDir = Path.Combine(main, "USA", "saves", "0000000000000000", "535107DB", "00000002", "mock_dlc.bin");
         Directory.CreateDirectory(dlcDir);
         File.WriteAllText(Path.Combine(dlcDir, "mock_dlc.dat"), "MOCK DLC");
 
-        string userNtsc = Path.Combine(target, @"NTSC-U\saves\1234567890ABCDEF\535107DB\00000001");
-        string slot1Dir = Path.Combine(userNtsc, "InfiniteUndiscovery_0001.bin");
-        string slot2Dir = Path.Combine(userNtsc, "InfiniteUndiscovery_0002.bin");
-        Directory.CreateDirectory(slot1Dir);
-        Directory.CreateDirectory(slot2Dir);
+        WriteSlot(main, "USA", user, 1, 50000, 15, 12, true);
+        WriteSlot(main, "USA", user, 2, 999999, 45, 40, true);
+        WriteSlot(main, "USA-UNDUB", user, 1, 33333, 10, 9, true);
+        WriteSlot(main, "EUROPE", user, 1, 120000, 20, 18, true);
+        WriteSlot(main, "JAPAN", user, 1, 44444, 11, 10, true);
+        WriteSlot(main, "ASIA", user, 1, 55555, 12, 11, true);
+        WriteAchievementsDecoy(main, "USA", 1, 70001);
 
-        File.WriteAllBytes(Path.Combine(slot1Dir, "InfiniteUndiscovery.dat"), MakeSave(50000, 15, 12));
-        MakeThumb(Path.Combine(slot1Dir, "__thumbnail.png"));
+        // 2) Legacy-only install
+        string legacy = args[1];
+        NewRecomp(legacy);
+        WriteSlot(legacy, "NTSC-U", user, 3, 777700, 30, 25, true);
+        WriteSlot(legacy, "PAL", user, 4, 888800, 35, 30, true);
+        WriteAchievementsDecoy(legacy, "NTSC-U", 1, 70002);
 
-        File.WriteAllBytes(Path.Combine(slot2Dir, "InfiniteUndiscovery.dat"), MakeSave(999999, 45, 40));
-        MakeThumb(Path.Combine(slot2Dir, "__thumbnail.png"));
-
-        string userPal = Path.Combine(target, @"PAL\saves\1234567890ABCDEF\535107DB\00000001");
-        string palSlot1 = Path.Combine(userPal, "InfiniteUndiscovery_0001.bin");
-        Directory.CreateDirectory(palSlot1);
-        File.WriteAllBytes(Path.Combine(palSlot1, "InfiniteUndiscovery.dat"), MakeSave(120000, 20, 18));
-        MakeThumb(Path.Combine(palSlot1, "__thumbnail.png"));
+        // 3) Mixed install (native + legacy for the same profile)
+        string mixed = args[2];
+        NewRecomp(mixed);
+        WriteSlot(mixed, "USA", user, 1, 111111, 12, 11, false);
+        WriteSlot(mixed, "NTSC-U", user, 1, 222222, 22, 21, false);
+        WriteSlot(mixed, "EUROPE", user, 1, 333333, 33, 32, false);
+        WriteSlot(mixed, "PAL", user, 1, 444444, 44, 43, false);
     }
 }
-"@
-    Set-Content -Path $genCs -Value $genSrc
-    & $csc /target:exe /out:$genExe /reference:$bridgeExe $genCs | Out-Null
-    & $genExe "$fixtureRecomp"
-    Remove-Item $genCs, $genExe -Force
-    Write-Host "[PASS] Synthetic MockRecomp generated."
-}
+'@
+Set-Content -Path $genCs -Value $genSrc
+& $csc /nologo /target:exe /out:$genExe /reference:$bridgeExe $genCs | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "Compilation of the fixture generator failed!" }
+& $genExe "$fixtureRecomp" "$fixtureLegacy" "$fixtureMixed"
+if ($LASTEXITCODE -ne 0) { throw "Fixture generation failed!" }
+Remove-Item $genCs, $genExe -Force
+Write-Host "[PASS] Synthetic environments generated (profiles + legacy + mixed)."
 
-$slot1Fixture = Join-Path $fixtureRecomp "NTSC-U\saves\1234567890ABCDEF\535107DB\00000001\InfiniteUndiscovery_0001.bin\InfiniteUndiscovery.dat"
-$slot2Fixture = Join-Path $fixtureRecomp "NTSC-U\saves\1234567890ABCDEF\535107DB\00000001\InfiniteUndiscovery_0002.bin\InfiniteUndiscovery.dat"
+$slot1Fixture = Join-Path $fixtureRecomp "USA\saves\1234567890ABCDEF\535107DB\00000001\InfiniteUndiscovery_0001.bin\InfiniteUndiscovery.dat"
+$slot2Fixture = Join-Path $fixtureRecomp "USA\saves\1234567890ABCDEF\535107DB\00000001\InfiniteUndiscovery_0002.bin\InfiniteUndiscovery.dat"
+$dlcFixture = Join-Path $fixtureRecomp "USA\saves\0000000000000000\535107DB\00000002\mock_dlc.bin\mock_dlc.dat"
 
-# Baseline hashes
+if (!(Test-Path $slot1Fixture)) { throw "Fixture slot 1 missing: $slot1Fixture" }
+if (!(Test-Path $slot2Fixture)) { throw "Fixture slot 2 missing: $slot2Fixture" }
+
 $slot1Hash = (Get-FileHash $slot1Fixture -Algorithm SHA256).Hash
 $slot2Hash = (Get-FileHash $slot2Fixture -Algorithm SHA256).Hash
-
 Write-Host "Baseline Slot 1 SHA256: $slot1Hash"
 Write-Host "Baseline Slot 2 SHA256: $slot2Hash"
 
@@ -177,7 +219,6 @@ Write-Host "`n[TEST 2] CLI set-fol command and verify CRC32 recalculation..."
 $slot2Modified = Join-Path $testDir "Slot2_Modified.dat"
 & $bridgeExe set-fol $slot2Copy $slot2Modified 777777 | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Test 2 failed: set-fol returned non-zero!" }
-
 & $bridgeExe verify $slot2Modified | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Test 2 failed: modified save verification failed!" }
 Write-Host "[PASS] Test 2: Fol modified and dual CRC32 recalculated."
@@ -193,8 +234,7 @@ Write-Host "[PASS] Test 3: Correctly rejected invalid magic."
 
 Write-Host "`n[TEST 4] Reject invalid size..."
 $badSize = Join-Path $testDir "bad_size.dat"
-$badSizeBytes = New-Object byte[] 1000
-[System.IO.File]::WriteAllBytes($badSize, $badSizeBytes)
+[System.IO.File]::WriteAllBytes($badSize, (New-Object byte[] 1000))
 & $bridgeExe verify $badSize | Out-Null
 if ($LASTEXITCODE -eq 0) { throw "Test 4 failed: Should have rejected invalid size!" }
 Write-Host "[PASS] Test 4: Correctly rejected invalid size."
@@ -205,24 +245,22 @@ if ($LASTEXITCODE -eq 0) { throw "Test 5 failed: Should have blocked writing int
 Write-Host "[PASS] Test 5: Input path protection verified."
 
 Write-Host "`n[TEST 6] Safety check: Verify original fixtures remain 100% UNTOUCHED..."
-$slot1Check = (Get-FileHash $slot1Fixture -Algorithm SHA256).Hash
-$slot2Check = (Get-FileHash $slot2Fixture -Algorithm SHA256).Hash
-
-if ($slot1Check -ne $slot1Hash) { throw "CRITICAL: Slot 1 save was modified!" }
-if ($slot2Check -ne $slot2Hash) { throw "CRITICAL: Slot 2 save was modified!" }
+if ((Get-FileHash $slot1Fixture -Algorithm SHA256).Hash -ne $slot1Hash) { throw "CRITICAL: Slot 1 save was modified!" }
+if ((Get-FileHash $slot2Fixture -Algorithm SHA256).Hash -ne $slot2Hash) { throw "CRITICAL: Slot 2 save was modified!" }
+if (!(Test-Path $dlcFixture)) { throw "CRITICAL: DLC decoy fixture was removed!" }
 Write-Host "[PASS] Test 6: Fixture saves are 100% intact and unchanged."
 
 Write-Host "`n================================================="
-Write-Host "  RUNNING 28-POINT V2.2.0 COMPREHENSIVE SUITE..."
+Write-Host "  RUNNING COMPREHENSIVE PROFILE TEST SUITE..."
 Write-Host "================================================="
 
-$suiteExe = Join-Path $testDir "TestV22Suite.exe"
-$suiteSrc = Join-Path $scriptDir "TestV22Suite.cs"
-& $csc /target:exe /out:$suiteExe /reference:$bridgeExe $suiteSrc | Out-Null
-if ($LASTEXITCODE -ne 0) { throw "Compilation of TestV22Suite failed!" }
+$suiteExe = Join-Path $testDir "TestSuite.exe"
+$suiteSrc = Join-Path $scriptDir "TestSuite.cs"
+& $csc /nologo /target:exe /out:$suiteExe /reference:$bridgeExe $suiteSrc | Out-Null
+if ($LASTEXITCODE -ne 0) { throw "Compilation of TestSuite failed!" }
 
-& "$suiteExe"
-if ($LASTEXITCODE -ne 0) { throw "TestV22Suite failed!" }
+& "$suiteExe" "$fixtureRecomp" "$fixtureLegacy" "$fixtureMixed"
+if ($LASTEXITCODE -ne 0) { throw "TestSuite failed!" }
 
 Write-Host "`n================================================="
 Write-Host "  ALL TESTS PASSED SUCCESSFULLY (100% SUITE PASS)!"

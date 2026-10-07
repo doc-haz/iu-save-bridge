@@ -8,7 +8,8 @@ namespace IUSaveBridge
     {
         public int SlotNumber { get; set; }
         public string SlotName { get; set; }
-        public string Region { get; set; }
+        public string Profile { get; set; }
+        public bool IsLegacyProfile { get; set; }
         public string DirectoryPath { get; set; }
         public string PayloadPath { get; set; }
         public string ThumbnailPath { get; set; }
@@ -25,7 +26,8 @@ namespace IUSaveBridge
     {
         public string FileName { get; set; }
         public string FullPath { get; set; }
-        public string Region { get; set; }
+        public string Profile { get; set; }
+        public bool IsLegacyBackup { get; set; }
         public int SlotNumber { get; set; }
         public DateTime Timestamp { get; set; }
         public long FileSize { get; set; }
@@ -40,26 +42,111 @@ namespace IUSaveBridge
     {
         public string Language { get; set; }
         public string RecompPath { get; set; }
-        public string Region { get; set; }
+        public string Profile { get; set; }
 
         public AppConfig()
         {
             Language = "en";
             RecompPath = "";
-            Region = "NTSC-U";
+            Profile = SaveManager.ProfileUsa;
         }
     }
 
     public class SaveManager
     {
-        public const string RegionNtscU = "NTSC-U";
-        public const string RegionPal = "PAL";
         public const string TitleIdHex = "535107DB";
+
+        // --- Final IU Recomp v1.0.0-rc1 profile model (stable codes) ---
+        public const string ProfileUsa = "USA";
+        public const string ProfileUsaUndub = "USA-UNDUB";
+        public const string ProfileEurope = "EUROPE";
+        public const string ProfileJapan = "JAPAN";
+        public const string ProfileAsia = "ASIA";
+
+        // --- Legacy folder names still found in pre-1.0.0-rc1 installations ---
+        public const string LegacyFolderNtscU = "NTSC-U";
+        public const string LegacyFolderPal = "PAL";
+
+        /// <summary>
+        /// Recomp stores the achievements subsystem at &lt;savesRoot&gt;\achievements\.
+        /// That tree can contain a payload shaped like
+        /// achievements\535107DB\00000001\InfiniteUndiscovery_XXXX.bin\InfiniteUndiscovery.dat
+        /// which structurally resembles a save slot but is not a playable save. It is excluded
+        /// explicitly (case-insensitive) from discovery.
+        /// </summary>
+        public const string AchievementsFolderName = "achievements";
+
+        /// <summary>
+        /// Canonical, ordered list of supported IU Recomp profiles.
+        /// These codes are used as on-disk folder names under the Recomp root and under backups\.
+        /// </summary>
+        public static readonly string[] SupportedProfiles = new string[]
+        {
+            ProfileUsa,
+            ProfileUsaUndub,
+            ProfileEurope,
+            ProfileJapan,
+            ProfileAsia
+        };
+
+        /// <summary>Default profile used when nothing is configured or a value cannot be resolved.</summary>
+        public const string DefaultProfile = ProfileUsa;
+
+        /// <summary>
+        /// Maps any incoming value (new profile code or legacy region code) to a canonical profile code.
+        /// Legacy mapping: NTSC-U -> USA, PAL -> EUROPE. Returns null for null/empty input.
+        /// Unrecognized values are returned unchanged so the UI can still surface them.
+        /// </summary>
+        public static string NormalizeProfile(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return null;
+
+            string v = value.Trim();
+            if (v.Length == 0) return null;
+
+            if (string.Equals(v, LegacyFolderNtscU, StringComparison.OrdinalIgnoreCase)) return ProfileUsa;
+            if (string.Equals(v, LegacyFolderPal, StringComparison.OrdinalIgnoreCase)) return ProfileEurope;
+
+            foreach (string p in SupportedProfiles)
+            {
+                if (string.Equals(v, p, StringComparison.OrdinalIgnoreCase)) return p;
+            }
+
+            return v;
+        }
+
+        /// <summary>Returns the legacy folder name that maps to the given canonical profile, or null.</summary>
+        public static string GetLegacyFolderForProfile(string profile)
+        {
+            string code = NormalizeProfile(profile);
+            if (string.Equals(code, ProfileUsa, StringComparison.OrdinalIgnoreCase)) return LegacyFolderNtscU;
+            if (string.Equals(code, ProfileEurope, StringComparison.OrdinalIgnoreCase)) return LegacyFolderPal;
+            return null;
+        }
+
+        public static bool IsSupportedProfile(string profile)
+        {
+            if (string.IsNullOrEmpty(profile)) return false;
+            foreach (string p in SupportedProfiles)
+            {
+                if (string.Equals(p, profile, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
 
         public static string AppBaseDir
         {
             get
             {
+                try
+                {
+                    string asmLoc = typeof(SaveManager).Assembly.Location;
+                    if (!string.IsNullOrEmpty(asmLoc))
+                    {
+                        return Path.GetDirectoryName(Path.GetFullPath(asmLoc));
+                    }
+                }
+                catch { }
                 return AppDomain.CurrentDomain.BaseDirectory;
             }
         }
@@ -93,7 +180,15 @@ namespace IUSaveBridge
                     string json = File.ReadAllText(ConfigFilePath);
                     cfg.Language = ExtractJsonString(json, "language") ?? "en";
                     cfg.RecompPath = ExtractJsonString(json, "recompPath") ?? "";
-                    cfg.Region = ExtractJsonString(json, "region") ?? RegionNtscU;
+
+                    // New portable format ("profile") with transparent legacy fallback ("region").
+                    string profileRaw = ExtractJsonString(json, "profile");
+                    if (string.IsNullOrEmpty(profileRaw))
+                    {
+                        // Legacy config.json: NTSC-U -> USA, PAL -> EUROPE (mapped in memory).
+                        profileRaw = ExtractJsonString(json, "region");
+                    }
+                    cfg.Profile = NormalizeProfile(profileRaw);
                 }
             }
             catch { }
@@ -103,9 +198,9 @@ namespace IUSaveBridge
             {
                 cfg.Language = "en";
             }
-            if (string.IsNullOrEmpty(cfg.Region))
+            if (string.IsNullOrEmpty(cfg.Profile))
             {
-                cfg.Region = RegionNtscU;
+                cfg.Profile = DefaultProfile;
             }
 
             return cfg;
@@ -117,11 +212,12 @@ namespace IUSaveBridge
             try
             {
                 string escapedPath = (cfg.RecompPath ?? "").Replace("\\", "\\\\");
+                // Always persist the new format: "profile" only (no legacy "region" key).
                 string json = string.Format(
-                    "{{\r\n  \"language\": \"{0}\",\r\n  \"recompPath\": \"{1}\",\r\n  \"region\": \"{2}\"\r\n}}\r\n",
+                    "{{\r\n  \"language\": \"{0}\",\r\n  \"recompPath\": \"{1}\",\r\n  \"profile\": \"{2}\"\r\n}}\r\n",
                     cfg.Language ?? "en",
                     escapedPath,
-                    cfg.Region ?? RegionNtscU);
+                    NormalizeProfile(cfg.Profile) ?? DefaultProfile);
                 File.WriteAllText(ConfigFilePath, json);
             }
             catch { }
@@ -173,9 +269,13 @@ namespace IUSaveBridge
             string exe1 = Path.Combine(dir, "InfiniteUndiscoveryRecomp.exe");
             bool hasExe = File.Exists(exe1);
 
-            string ntscSaves = Path.Combine(dir, RegionNtscU, "saves");
-            string palSaves = Path.Combine(dir, RegionPal, "saves");
-            bool hasSaves = Directory.Exists(ntscSaves) || Directory.Exists(palSaves);
+            bool hasSaves = false;
+            foreach (string p in SupportedProfiles)
+            {
+                if (Directory.Exists(Path.Combine(dir, p, "saves"))) { hasSaves = true; break; }
+                string legacy = GetLegacyFolderForProfile(p);
+                if (legacy != null && Directory.Exists(Path.Combine(dir, legacy, "saves"))) { hasSaves = true; break; }
+            }
 
             return hasExe || hasSaves;
         }
@@ -192,11 +292,12 @@ namespace IUSaveBridge
 
             if (!Directory.Exists(path)) return null;
 
-            // If user selected NTSC-U or PAL subfolder, go up
+            // If the user selected a profile / legacy-region / saves subfolder, go up to the Recomp root.
             string dirName = Path.GetFileName(path.TrimEnd('\\', '/'));
-            if (string.Equals(dirName, RegionNtscU, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(dirName, RegionPal, StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(dirName, "saves", StringComparison.OrdinalIgnoreCase))
+            bool isProfileFolder = IsSupportedProfile(dirName) ||
+                                   string.Equals(dirName, LegacyFolderNtscU, StringComparison.OrdinalIgnoreCase) ||
+                                   string.Equals(dirName, LegacyFolderPal, StringComparison.OrdinalIgnoreCase);
+            if (isProfileFolder || string.Equals(dirName, "saves", StringComparison.OrdinalIgnoreCase))
             {
                 string parent = Path.GetDirectoryName(path);
                 if (string.Equals(dirName, "saves", StringComparison.OrdinalIgnoreCase))
@@ -224,6 +325,7 @@ namespace IUSaveBridge
             // 2. Search local candidate locations near IU Save Bridge
             string baseDir = AppBaseDir;
             string parentDir = Path.GetDirectoryName(baseDir.TrimEnd('\\', '/'));
+            string grandparentDir = !string.IsNullOrEmpty(parentDir) ? Path.GetDirectoryName(parentDir.TrimEnd('\\', '/')) : null;
 
             List<string> candidates = new List<string>();
             candidates.Add(baseDir);
@@ -236,7 +338,16 @@ namespace IUSaveBridge
                 candidates.Add(Path.Combine(parentDir, "InfiniteUndiscoveryRecomp"));
                 candidates.Add(Path.Combine(parentDir, "Infinite Undiscovery Recomp"));
                 candidates.Add(Path.Combine(parentDir, @"Infinite Undiscovery Recomp\InfiniteUndiscoveryRecomp-v1.0.0"));
-                                candidates.Add(Path.Combine(parentDir, "InfiniteUndiscoveryRecomp-v1.0.0"));
+                candidates.Add(Path.Combine(parentDir, "InfiniteUndiscoveryRecomp-v1.0.0"));
+            }
+
+            if (!string.IsNullOrEmpty(grandparentDir))
+            {
+                candidates.Add(grandparentDir);
+                candidates.Add(Path.Combine(grandparentDir, "InfiniteUndiscoveryRecomp"));
+                candidates.Add(Path.Combine(grandparentDir, "Infinite Undiscovery Recomp"));
+                candidates.Add(Path.Combine(grandparentDir, @"Infinite Undiscovery Recomp\InfiniteUndiscoveryRecomp-v1.0.0"));
+                candidates.Add(Path.Combine(grandparentDir, "InfiniteUndiscoveryRecomp-v1.0.0"));
             }
 
             foreach (string c in candidates)
@@ -253,41 +364,226 @@ namespace IUSaveBridge
             return null;
         }
 
-        public static List<string> GetAvailableRegions(string recompRoot)
+        /// <summary>
+        /// Returns the canonical profile codes that are actually installed under the Recomp root.
+        /// New-style folders (USA\, EUROPE\, ...) are preferred; legacy folders (NTSC-U\, PAL\)
+        /// are reported as their canonical profile (USA / EUROPE) and never as raw legacy names.
+        /// </summary>
+        public static List<string> GetAvailableProfiles(string recompRoot)
         {
-            List<string> regions = new List<string>();
-            if (string.IsNullOrEmpty(recompRoot) || !Directory.Exists(recompRoot)) return regions;
+            List<string> profiles = new List<string>();
+            if (string.IsNullOrEmpty(recompRoot) || !Directory.Exists(recompRoot)) return profiles;
 
-            string ntscDir = Path.Combine(recompRoot, RegionNtscU, "saves");
-            string palDir = Path.Combine(recompRoot, RegionPal, "saves");
+            foreach (string p in SupportedProfiles)
+            {
+                string native = Path.Combine(recompRoot, p, "saves");
+                if (Directory.Exists(native))
+                {
+                    profiles.Add(p);
+                    continue;
+                }
 
-            if (Directory.Exists(ntscDir)) regions.Add(RegionNtscU);
-            if (Directory.Exists(palDir)) regions.Add(RegionPal);
+                // Fall back to the matching legacy folder only when the native one is absent.
+                string legacy = GetLegacyFolderForProfile(p);
+                if (legacy != null && Directory.Exists(Path.Combine(recompRoot, legacy, "saves")))
+                {
+                    profiles.Add(p);
+                }
+            }
 
-            return regions;
+            return profiles;
         }
 
-        public static string GetRegionSavesDir(string recompRoot, string region)
+        /// <summary>True when the given profile resolves to a legacy folder for this Recomp root.</summary>
+        public static bool IsLegacyProfileInstall(string recompRoot, string profile)
+        {
+            bool isLegacy;
+            ResolveProfileSavesDir(recompRoot, profile, out isLegacy);
+            return isLegacy;
+        }
+
+        /// <summary>
+        /// Resolves the on-disk "saves" directory for a profile, preferring the new profile folder
+        /// and transparently falling back to the legacy NTSC-U / PAL folders for old installs.
+        /// </summary>
+        public static string ResolveProfileSavesDir(string recompRoot, string profile, out bool isLegacy)
+        {
+            isLegacy = false;
+            if (string.IsNullOrEmpty(recompRoot)) return null;
+
+            string code = NormalizeProfile(profile) ?? DefaultProfile;
+
+            string native = Path.Combine(recompRoot, code, "saves");
+            if (Directory.Exists(native)) return native;
+
+            string legacyFolder = GetLegacyFolderForProfile(code);
+            if (legacyFolder != null)
+            {
+                string legacy = Path.Combine(recompRoot, legacyFolder, "saves");
+                if (Directory.Exists(legacy))
+                {
+                    isLegacy = true;
+                    return legacy;
+                }
+            }
+
+            // Nothing exists yet: report the canonical destination (used for import/create).
+            return native;
+        }
+
+        public static List<string> GetAvailableUserIds(string recompRoot, string profile)
+        {
+            List<string> users = new List<string>();
+            if (string.IsNullOrEmpty(recompRoot) || string.IsNullOrEmpty(profile)) return users;
+
+            string savesRoot = GetProfileSavesDir(recompRoot, profile);
+            if (Directory.Exists(savesRoot))
+            {
+                try
+                {
+                    string[] dirs = Directory.GetDirectories(savesRoot);
+                    foreach (string d in dirs)
+                    {
+                        string name = Path.GetFileName(d);
+                        if (name == "0000000000000000" ||
+                            string.Equals(name, "cache", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(name, "Headers", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(name, AchievementsFolderName, StringComparison.OrdinalIgnoreCase) ||
+                            name.StartsWith("InfiniteUndiscovery_", StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+                        users.Add(name);
+                    }
+                }
+                catch { }
+            }
+
+            if (users.Count == 0)
+            {
+                users.Add("0000000100000001");
+            }
+
+            return users;
+        }
+
+        public static string GetSlotDirectory(string recompRoot, string profile, string userId, int slotNumber)
         {
             if (string.IsNullOrEmpty(recompRoot)) return null;
-            return Path.Combine(recompRoot, region, "saves");
+            string savesRoot = GetProfileSavesDir(recompRoot, profile);
+            string user = string.IsNullOrEmpty(userId) ? "0000000100000001" : userId;
+            return Path.Combine(savesRoot, Path.Combine(user, Path.Combine(TitleIdHex, Path.Combine("00000001", string.Format("InfiniteUndiscovery_{0:D4}.bin", slotNumber)))));
         }
 
-        public static string GetBackupsDirForRegion(string region)
+        public static bool SlotExists(string recompRoot, string profile, string userId, int slotNumber)
         {
-            string dir = Path.Combine(BackupsBaseDir, region ?? RegionNtscU);
+            string dir = GetSlotDirectory(recompRoot, profile, userId, slotNumber);
+            if (string.IsNullOrEmpty(dir)) return false;
+            string dat = Path.Combine(dir, "InfiniteUndiscovery.dat");
+            return File.Exists(dat);
+        }
+
+        public static string ImportXboxSave(StfsSaveInfo info, string recompRoot, string targetProfile, string targetUserId, int targetSlotNumber, bool replaceExisting)
+        {
+            if (info == null || info.Payload == null)
+                throw new ArgumentNullException("info", "Invalid Xbox 360 save info.");
+            if (string.IsNullOrEmpty(recompRoot))
+                throw new ArgumentNullException("recompRoot", "Recomp root directory is required.");
+
+            string prof = string.IsNullOrEmpty(targetProfile)
+                ? (NormalizeProfile(info.DetectedProfile) ?? DefaultProfile)
+                : NormalizeProfile(targetProfile);
+            string user = string.IsNullOrEmpty(targetUserId) ? "0000000100000001" : targetUserId;
+            int slot = (targetSlotNumber > 0) ? targetSlotNumber : (int)info.OriginalSlot;
+            if (slot <= 0) slot = 1;
+
+            string targetDir = GetSlotDirectory(recompRoot, prof, user, slot);
+            string targetDat = Path.Combine(targetDir, "InfiniteUndiscovery.dat");
+
+            if (File.Exists(targetDat))
+            {
+                if (!replaceExisting)
+                {
+                    throw new InvalidOperationException(string.Format("Slot {0} already exists in {1}.", slot, prof));
+                }
+                // Mandatory automatic safety backup before overwriting!
+                CreateBackup(targetDat, prof, Path.GetFileName(targetDir), slot);
+            }
+
+            if (!Directory.Exists(targetDir))
+            {
+                Directory.CreateDirectory(targetDir);
+            }
+
+            // Keep extracted 409,600-byte UDSV payload structurally intact
+            byte[] dataToSave = (byte[])info.Payload.Data.Clone();
+
+            // Only modify slot number and recalculate CRCs if target slot differs from source slot!
+            if (info.OriginalSlot != (uint)slot)
+            {
+                SavePayload.WriteUInt32BE(dataToSave, SavePayload.SlotNumberOffset, (uint)slot);
+
+                // Recalculate CRCs
+                for (int i = 20; i < 28; i++) dataToSave[i] = 0;
+                byte[] tempHeader = new byte[232];
+                Array.Copy(dataToSave, 0, tempHeader, 0, 232);
+                for (int i = 20; i < 28; i++) tempHeader[i] = 0;
+
+                uint crc1 = SavePayload.ComputeCRC(tempHeader, 0, 232);
+                uint crc2 = SavePayload.ComputeCRC(dataToSave, 232, dataToSave.Length - 232);
+                SavePayload.WriteUInt32BE(dataToSave, 0x14, crc1);
+                SavePayload.WriteUInt32BE(dataToSave, 0x18, crc2);
+            }
+
+            // Atomic write of intact payload
+            SafePath.AtomicSave(dataToSave, targetDat);
+
+            // Save thumbnail if available
+            if (info.ThumbnailPng != null && info.ThumbnailPng.Length > 0)
+            {
+                try
+                {
+                    string targetThumb = Path.Combine(targetDir, "__thumbnail.png");
+                    File.WriteAllBytes(targetThumb, info.ThumbnailPng);
+                }
+                catch { }
+            }
+
+            return targetDat;
+        }
+
+        /// <summary>
+        /// Returns the on-disk "saves" directory for a profile, resolving legacy NTSC-U / PAL
+        /// folders transparently when the new profile folder is not present.
+        /// </summary>
+        public static string GetProfileSavesDir(string recompRoot, string profile)
+        {
+            bool isLegacy;
+            return ResolveProfileSavesDir(recompRoot, profile, out isLegacy);
+        }
+
+        /// <summary>
+        /// Canonical backups directory for a profile: backups\&lt;PROFILE&gt;\.
+        /// Legacy backups are never moved automatically; they are read via ScanBackups.
+        /// </summary>
+        public static string GetBackupsDirForProfile(string profile)
+        {
+            string code = NormalizeProfile(profile) ?? DefaultProfile;
+            string dir = Path.Combine(BackupsBaseDir, code);
             if (!Directory.Exists(dir)) Directory.CreateDirectory(dir);
             return dir;
         }
         #endregion
 
-        #region Save Scanning (Ignoring DLC, Headers, and Runtime cache)
-        public static List<SaveSlotInfo> ScanSlots(string recompRoot, string region)
+        #region Save Scanning (Ignoring DLC, Headers, Runtime cache, and achievements)
+        public static List<SaveSlotInfo> ScanSlots(string recompRoot, string profile)
         {
             List<SaveSlotInfo> slots = new List<SaveSlotInfo>();
-            if (string.IsNullOrEmpty(recompRoot) || string.IsNullOrEmpty(region)) return slots;
+            if (string.IsNullOrEmpty(recompRoot) || string.IsNullOrEmpty(profile)) return slots;
 
-            string savesRoot = GetRegionSavesDir(recompRoot, region);
+            string code = NormalizeProfile(profile) ?? DefaultProfile;
+            bool isLegacy;
+            string savesRoot = ResolveProfileSavesDir(recompRoot, code, out isLegacy);
             if (!Directory.Exists(savesRoot)) return slots;
 
             // Collect all candidate save folders matching "InfiniteUndiscovery_*.bin"
@@ -306,7 +602,8 @@ namespace IUSaveBridge
                     // Strictly ignore DLC shared folder
                     if (folderName == "0000000000000000" ||
                         string.Equals(folderName, "cache", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(folderName, "Headers", StringComparison.OrdinalIgnoreCase))
+                        string.Equals(folderName, "Headers", StringComparison.OrdinalIgnoreCase) ||
+                        string.Equals(folderName, AchievementsFolderName, StringComparison.OrdinalIgnoreCase))
                     {
                         continue;
                     }
@@ -366,7 +663,8 @@ namespace IUSaveBridge
 
                 SaveSlotInfo info = new SaveSlotInfo
                 {
-                    Region = region,
+                    Profile = code,
+                    IsLegacyProfile = isLegacy,
                     DirectoryPath = fullSlotDir,
                     PayloadPath = datPath,
                     SlotName = dirName,
@@ -407,12 +705,15 @@ namespace IUSaveBridge
         #endregion
 
         #region Backups Management
-        public static string CreateBackup(string sourceDatPath, string region, string slotName, int slotNumber = 0)
+        public static string CreateBackup(string sourceDatPath, string profile, string slotName, int slotNumber = 0)
         {
             if (!File.Exists(sourceDatPath))
                 throw new FileNotFoundException("Save payload file to backup not found: " + sourceDatPath);
 
-            string regionDir = GetBackupsDirForRegion(region);
+            // New backups always land in the canonical profile folder (e.g. USA\, EUROPE\),
+            // even when the source save was read from a legacy NTSC-U\ / PAL\ install.
+            string profileCode = NormalizeProfile(profile) ?? DefaultProfile;
+            string profileDir = GetBackupsDirForProfile(profileCode);
             string ts = DateTime.Now.ToString("yyyyMMdd_HHmmss");
 
             string slotTag = (slotNumber > 0)
@@ -420,14 +721,14 @@ namespace IUSaveBridge
                 : slotName.Replace("InfiniteUndiscovery_", "").Replace(".bin", "");
 
             string backupFileName = string.Format("InfiniteUndiscovery_{0}_{1}.bin", slotTag, ts);
-            string backupPath = Path.Combine(regionDir, backupFileName);
+            string backupPath = Path.Combine(profileDir, backupFileName);
             if (File.Exists(backupPath))
             {
                 int seq = 1;
                 while (File.Exists(backupPath))
                 {
                     backupFileName = string.Format("InfiniteUndiscovery_{0}_{1}_{2:D2}.bin", slotTag, ts, seq);
-                    backupPath = Path.Combine(regionDir, backupFileName);
+                    backupPath = Path.Combine(profileDir, backupFileName);
                     seq++;
                 }
             }
@@ -440,7 +741,7 @@ namespace IUSaveBridge
             string sourceThumb = Path.Combine(sourceDir, "__thumbnail.png");
             if (File.Exists(sourceThumb))
             {
-                string thumbBackup = Path.Combine(regionDir, string.Format("InfiniteUndiscovery_{0}_{1}.png", slotTag, ts));
+                string thumbBackup = Path.Combine(profileDir, string.Format("InfiniteUndiscovery_{0}_{1}.png", slotTag, ts));
                 try { File.Copy(sourceThumb, thumbBackup, true); } catch { }
             }
 
@@ -449,9 +750,9 @@ namespace IUSaveBridge
             {
                 SavePayload p = SavePayload.FromFile(backupPath);
                 string meta = string.Format(
-                    "Date: {0}\r\nRegion: {1}\r\nSlot: {2}\r\nSource: {3}\r\nSHA256: {4}\r\nFol: {5}\r\n",
+                    "Date: {0}\r\nProfile: {1}\r\nSlot: {2}\r\nSource: {3}\r\nSHA256: {4}\r\nFol: {5}\r\n",
                     DateTime.Now.ToString("s"),
-                    region ?? RegionNtscU,
+                    profileCode,
                     slotTag,
                     sourceDatPath,
                     p.Sha256Hash,
@@ -463,30 +764,61 @@ namespace IUSaveBridge
             return backupPath;
         }
 
-        public static List<BackupItemInfo> ScanBackups(string region = null)
+        /// <summary>
+        /// Enumerates the backup directories that belong to a profile, including legacy folders.
+        /// When <paramref name="profile"/> is null, all supported profiles (and their legacy folders)
+        /// are scanned.
+        /// </summary>
+        private static List<KeyValuePair<string, string>> GetBackupScanDirs(string profile)
         {
-            List<BackupItemInfo> list = new List<BackupItemInfo>();
-            List<string> dirsToScan = new List<string>();
-
-            if (!string.IsNullOrEmpty(region))
-            {
-                dirsToScan.Add(GetBackupsDirForRegion(region));
-            }
-            else
-            {
-                if (Directory.Exists(BackupsBaseDir))
-                {
-                    dirsToScan.Add(BackupsBaseDir);
-                    dirsToScan.Add(Path.Combine(BackupsBaseDir, RegionNtscU));
-                    dirsToScan.Add(Path.Combine(BackupsBaseDir, RegionPal));
-                }
-            }
+            List<KeyValuePair<string, string>> dirs = new List<KeyValuePair<string, string>>();
+            if (!Directory.Exists(BackupsBaseDir)) return dirs;
 
             HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (string dir in dirsToScan)
+            List<string> profiles = new List<string>();
+            if (string.IsNullOrEmpty(profile))
             {
+                foreach (string p in SupportedProfiles) profiles.Add(p);
+            }
+            else
+            {
+                profiles.Add(NormalizeProfile(profile) ?? DefaultProfile);
+            }
+
+            foreach (string p in profiles)
+            {
+                // Canonical folder: backups\<PROFILE>\
+                string native = Path.Combine(BackupsBaseDir, p);
+                if (seen.Add(native)) dirs.Add(new KeyValuePair<string, string>(native, p));
+
+                // Legacy folder aliases: backups\NTSC-U\ -> USA, backups\PAL\ -> EUROPE.
+                string legacy = GetLegacyFolderForProfile(p);
+                if (legacy != null)
+                {
+                    string legacyDir = Path.Combine(BackupsBaseDir, legacy);
+                    if (seen.Add(legacyDir)) dirs.Add(new KeyValuePair<string, string>(legacyDir, p));
+                }
+            }
+
+            return dirs;
+        }
+
+        public static List<BackupItemInfo> ScanBackups(string profile = null)
+        {
+            List<BackupItemInfo> list = new List<BackupItemInfo>();
+            List<KeyValuePair<string, string>> dirsToScan = GetBackupScanDirs(profile);
+
+            HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (KeyValuePair<string, string> target in dirsToScan)
+            {
+                string dir = target.Key;
+                string canonicalProfile = target.Value;
                 if (!Directory.Exists(dir)) continue;
+
+                bool isLegacy = string.Equals(Path.GetFileName(dir), LegacyFolderNtscU, StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(Path.GetFileName(dir), LegacyFolderPal, StringComparison.OrdinalIgnoreCase);
 
                 string[] files = Directory.GetFiles(dir, "InfiniteUndiscovery_*.bin");
                 foreach (string f in files)
@@ -496,9 +828,6 @@ namespace IUSaveBridge
 
                     FileInfo fi = new FileInfo(f);
                     string name = fi.Name;
-
-                    string reg = Path.GetFileName(dir);
-                    if (reg != RegionNtscU && reg != RegionPal) reg = region ?? RegionNtscU;
 
                     int slotNum = 0;
                     string[] parts = name.Split('_');
@@ -537,7 +866,8 @@ namespace IUSaveBridge
                     {
                         FileName = name,
                         FullPath = f,
-                        Region = reg,
+                        Profile = canonicalProfile,
+                        IsLegacyBackup = isLegacy,
                         SlotNumber = slotNum,
                         Timestamp = fi.LastWriteTime,
                         FileSize = fi.Length,
@@ -555,7 +885,7 @@ namespace IUSaveBridge
             return list;
         }
 
-        public static string RestoreBackup(string backupFilePath, string targetDatPath, string region, string slotName, int slotNumber)
+        public static string RestoreBackup(string backupFilePath, string targetDatPath, string profile, string slotName, int slotNumber)
         {
             if (!File.Exists(backupFilePath))
                 throw new FileNotFoundException("Backup file not found: " + backupFilePath);
@@ -566,7 +896,7 @@ namespace IUSaveBridge
             // Step 2: Safety backup of the CURRENT save before replacing it!
             if (File.Exists(targetDatPath))
             {
-                CreateBackup(targetDatPath, region, slotName, slotNumber);
+                CreateBackup(targetDatPath, profile, slotName, slotNumber);
             }
 
             // Step 3: Write payload safely
@@ -584,7 +914,7 @@ namespace IUSaveBridge
             return targetDatPath;
         }
 
-        public static string SavePayloadDirect(SavePayload payload, string targetDatPath, string region, string slotName, int slotNumber)
+        public static string SavePayloadDirect(SavePayload payload, string targetDatPath, string profile, string slotName, int slotNumber)
         {
             if (payload == null) throw new ArgumentNullException("payload");
             if (string.IsNullOrEmpty(targetDatPath)) throw new ArgumentNullException("targetDatPath");
@@ -592,7 +922,7 @@ namespace IUSaveBridge
             // Step 1: Mandatory auto-backup of original save before ANY modification
             if (File.Exists(targetDatPath))
             {
-                CreateBackup(targetDatPath, region, slotName, slotNumber);
+                CreateBackup(targetDatPath, profile, slotName, slotNumber);
             }
 
             // Step 2: Recalculate checksums

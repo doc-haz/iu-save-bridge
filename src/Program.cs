@@ -43,7 +43,7 @@ namespace IUSaveBridge
             AttachConsole(ATTACH_PARENT_PROCESS);
 
             Console.WriteLine("=================================================");
-            Console.WriteLine("  Infinite Undiscovery Recomp Save Editor v2.2.0");
+            Console.WriteLine("  Infinite Undiscovery Recomp Save Editor v2.3.0");
             Console.WriteLine("  Official Save Editor Companion for IU Recomp");
             Console.WriteLine("=================================================");
 
@@ -90,7 +90,8 @@ namespace IUSaveBridge
             Console.WriteLine("  IU_Save_Bridge.exe set-fol <in> <out> <amount>");
             Console.WriteLine("\nFeatures:");
             Console.WriteLine("  - Official companion editor for Infinite Undiscovery Recomp");
-            Console.WriteLine("  - Supports portable ReXGlue save directories (NTSC-U & PAL)");
+            Console.WriteLine("  - Supports Recomp profiles: USA, USA-UNDUB, EUROPE, JAPAN, ASIA");
+            Console.WriteLine("  - Legacy folder compatibility: NTSC-U (USA) and PAL (EUROPE)");
             Console.WriteLine("  - Edits Fol, 18 Characters (Level, EXP, HP, MP, Stats, AP, Party), and 1,023 Items");
             Console.WriteLine("  - Automated timestamped backups before writing");
             Console.WriteLine("  - 100% portable with zero external system footprint");
